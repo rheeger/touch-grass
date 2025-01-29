@@ -291,7 +291,7 @@ export async function createGrassAttestation(
       }],
       functionName: "attest",
       args: [{
-        schema: SCHEMA_UID || ZERO_BYTES32,
+        schema: (SCHEMA_UID || ZERO_BYTES32) as `0x${string}`,
         data: {
           recipient: walletClient.account.address,
           expirationTime: BigInt(0),
