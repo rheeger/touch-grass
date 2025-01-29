@@ -1,24 +1,17 @@
 import { SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
-import { type WalletClient, createPublicClient, http } from "viem";
+import { type WalletClient } from "viem";
 import { base } from "viem/chains";
 
 // Base Mainnet EAS Contract: https://base.easscan.org/
 const EAS_CONTRACT_ADDRESS = "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as const;
-const SCHEMA_REGISTRY_ADDRESS = "0x720c2bA66D19A725143FBf5fDC5b4ADA2742682E" as const;
 const EAS_GRAPHQL_API = "https://base.easscan.org/graphql" as const;
 
 // Schema definition
-const SCHEMA_STRING = "bool isTouchingGrass, int256 lat, int256 lon" as const;
 let SCHEMA_UID: string | null = null;
 
 // Zero hash for refUID
 const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
-// Create public client for Base
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http()
-});
 
 interface GraphQLAttestation {
   id: string;
