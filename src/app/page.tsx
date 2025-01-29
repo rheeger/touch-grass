@@ -74,13 +74,13 @@ export default function Home() {
 
   const handleMapLoad = (map: google.maps.Map) => {
     mapRef.current = map;
-    
+
     // If we already have a location, center the map properly
     if (location) {
       map.setCenter(getMapCenter(location.lat, location.lng));
       map.setZoom(MAP_ZOOM);
     }
-  };
+    };
 
   // Function to check if user is touching grass
   const checkTouchingGrass = async (lat: number, lng: number) => {
@@ -88,7 +88,7 @@ export default function Home() {
       console.error('Map not initialized');
       return;
     }
-
+    
     setIsAnalyzing(true);
     try {
       // Phase 1: Analyze places data
@@ -108,7 +108,7 @@ export default function Home() {
           isInBuilding: placesResult.isInBuilding,
           placeTypes: placesResult.placeTypes,
         }
-      };
+  };
 
       setDetectionResult(result);
       setIsTouchingGrass(isTouchingGrass);
@@ -154,12 +154,18 @@ export default function Home() {
 
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng || !mapRef.current) return;
-    
+
+    // In production, only allow using current location
+    if (process.env.NEXT_PUBLIC_APP_ENV === 'production') {
+      alert('In production mode, you can only use your current location.');
+      return;
+    }
+
     const newLocation = {
       lat: e.latLng.lat(),
       lng: e.latLng.lng()
     };
-    
+
     // Reset zoom and center consistently
     mapRef.current.setZoom(MAP_ZOOM);
     mapRef.current.setCenter(getMapCenter(newLocation.lat, newLocation.lng));
@@ -225,21 +231,21 @@ export default function Home() {
       {/* Map Container */}
       <div className="absolute inset-0">
         {location && (
-          <LoadScript 
-            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
-            libraries={libraries}
-          >
-            <GoogleMap
+            <LoadScript 
+              googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+              libraries={libraries}
+            >
+              <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={location ? getMapCenter(location.lat, location.lng) : undefined}
-              zoom={MAP_ZOOM}
+                zoom={MAP_ZOOM}
               options={mapOptions}
-              onClick={handleMapClick}
-              onLoad={handleMapLoad}
-            >
+                onClick={handleMapClick}
+                onLoad={handleMapLoad}
+              >
               {location && <Marker position={location} />}
-            </GoogleMap>
-          </LoadScript>
+              </GoogleMap>
+            </LoadScript>
         )}
       </div>
 
@@ -256,33 +262,33 @@ export default function Home() {
                 <button
                   onClick={login}
                   className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold tracking-wide"
-                >
+            >
                   Connect Wallet
                 </button>
               </div>
-            </div>
+          </div>
           ) : (
-            <StatusCards
+          <StatusCards 
               isLoading={isLoading}
-              location={location}
+            location={location}
               isAnalyzing={isAnalyzing}
-              isTouchingGrass={isTouchingGrass}
-              detectionResult={detectionResult}
-              isManualOverride={isManualOverride}
-              onManualOverride={() => {
-                setIsManualOverride(true);
-                if (location) {
-                  checkTouchingGrass(location.lat, location.lng);
-                }
-              }}
+            isTouchingGrass={isTouchingGrass}
+            detectionResult={detectionResult}
+            isManualOverride={isManualOverride}
+            onManualOverride={() => {
+              setIsManualOverride(true);
+              if (location) {
+                checkTouchingGrass(location.lat, location.lng);
+              }
+            }}
               walletAddress={user?.wallet?.address}
               onDisconnect={logout}
               onCreateAttestation={handleCreateAttestation}
               isCreatingAttestation={isCreatingAttestation}
               selectedAttestation={selectedAttestation}
               onSelectAttestation={handleAttestationSelect}
-            />
-          )}
+          />
+              )}
         </div>
       </div>
     </main>
