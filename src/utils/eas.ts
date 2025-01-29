@@ -1,7 +1,6 @@
-import { SchemaEncoder, SchemaRegistry, TransactionSigner } from "@ethereum-attestation-service/eas-sdk";
-import { type WalletClient } from "viem";
+import { SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
+import { type WalletClient, createPublicClient, http } from "viem";
 import { base } from "viem/chains";
-import { providers } from "ethers";
 
 // Base Mainnet EAS Contract: https://base.easscan.org/
 const EAS_CONTRACT_ADDRESS = "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as const;
@@ -14,6 +13,12 @@ let SCHEMA_UID: string | null = null;
 
 // Zero hash for refUID
 const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
+
+// Create public client for Base
+const publicClient = createPublicClient({
+  chain: base,
+  transport: http()
+});
 
 interface GraphQLAttestation {
   id: string;
@@ -112,87 +117,6 @@ async function initializeSchemaUID(): Promise<void> {
 
 // Call initialization on module load
 initializeSchemaUID().catch(console.error);
-
-async function getOrRegisterSchema(walletClient: WalletClient): Promise<string> {
-  // First try to find existing schema
-  const schemaQuery = `
-    query GetSchema {
-      schemata(where: { schema: { equals: "bool isTouchingGrass, int256 lat, int256 lon" } }) {
-        id
-        schema
-        resolver
-        revocable
-      }
-    }
-  `;
-
-  const response = await fetch(EAS_GRAPHQL_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: schemaQuery
-    })
-  });
-
-  const json = await response.json();
-  console.log('Schema search response:', json);
-
-  if (json.data?.schemata?.length > 0) {
-    const uid = json.data.schemata[0].id;
-    console.log('Found existing schema:', uid);
-    return uid;
-  }
-
-  // If no schema exists, register it
-  console.log('No existing schema found, registering new one...');
-  
-  if (!walletClient.account) {
-    throw new Error('No wallet account connected');
-  }
-
-  if (!window.ethereum) {
-    throw new Error('No ethereum provider found');
-  }
-
-  // Create ethers v5 provider and signer
-  const provider = new providers.Web3Provider(window.ethereum);
-  await provider.send("eth_requestAccounts", []);
-  const signer = provider.getSigner();
-  
-  const schemaRegistry = new SchemaRegistry(SCHEMA_REGISTRY_ADDRESS);
-  // Use type assertion since we know ethers v5 signer is compatible
-  schemaRegistry.connect(signer as unknown as TransactionSigner);
-
-  const transaction = await schemaRegistry.register({
-    schema: SCHEMA_STRING,
-    resolverAddress: EAS_CONTRACT_ADDRESS,
-    revocable: true
-  });
-
-  console.log('Schema registration transaction:', transaction);
-  
-  // Wait for transaction to be mined
-  const receipt = await transaction.wait();
-  console.log('Schema registration receipt:', receipt);
-
-  // Query for the new schema UID
-  const retryResponse = await fetch(EAS_GRAPHQL_API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      query: schemaQuery
-    })
-  });
-
-  const retryJson = await retryResponse.json();
-  if (!retryJson.data?.schemata?.length) {
-    throw new Error('Failed to find schema after registration');
-  }
-
-  const newUid = retryJson.data.schemata[0].id;
-  console.log('New schema registered with UID:', newUid);
-  return newUid;
-}
 
 export async function getAttestations(address?: `0x${string}`): Promise<Attestation[]> {
   try {
@@ -332,17 +256,6 @@ export async function createGrassAttestation(
     // Ensure we're on Base network
     await ensureBaseChain(walletClient);
 
-    // Get or register schema
-    if (!SCHEMA_UID) {
-      SCHEMA_UID = await getOrRegisterSchema(walletClient);
-    }
-
-    console.log('Creating attestation with EAS:', {
-      contract: EAS_CONTRACT_ADDRESS,
-      schema: SCHEMA_UID,
-      data: { lat, lon, isTouchingGrass }
-    });
-
     // Initialize SchemaEncoder with the schema string
     const schemaEncoder = new SchemaEncoder("bool isTouchingGrass, int256 lat, int256 lon");
     const encodedData = schemaEncoder.encodeData([
@@ -385,7 +298,7 @@ export async function createGrassAttestation(
       }],
       functionName: "attest",
       args: [{
-        schema: SCHEMA_UID as `0x${string}`,
+        schema: SCHEMA_UID || ZERO_BYTES32,
         data: {
           recipient: walletClient.account.address,
           expirationTime: BigInt(0),
