@@ -1,101 +1,290 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
+import { usePrivy } from '@privy-io/react-auth';
+import { createGrassAttestation } from '@/utils/eas';
+import { useWalletClient } from 'wagmi';
+import { analyzePlacesData } from '@/utils/places';
+import { type Attestation } from '@/utils/eas';
+import { StatusCards } from '@/components/StatusCards';
+
+const mapContainerStyle = {
+  width: '100vw',
+  height: '100vh',
+  position: 'fixed',
+  top: 0,
+  left: 0,
+} as const;
+
+// Constants for map positioning
+const MAP_ZOOM = 16; // Less zoomed in for better context
+const MAP_OFFSET = 0.003; // Center offset to keep pin above status card
+
+const mapOptions = {
+  mapTypeId: 'satellite',
+  disableDefaultUI: true,
+  zoomControl: false,
+  mapTypeControl: false,
+  streetViewControl: false,
+  rotateControl: false,
+  fullscreenControl: false,
+  gestureHandling: 'greedy',
+  minZoom: 14, // Prevent zooming out too far
+  maxZoom: 20, // Prevent zooming in too far
+} as const;
+
+const libraries: ("places" | "geometry")[] = ["places", "geometry"];
+
+interface GrassDetectionResult {
+  isTouchingGrass: boolean;
+  confidence: number;
+  reasons: string[];
+  explanations: {
+    positive: string[];
+    negative: string[];
+  };
+  debugInfo?: {
+    isInPark?: boolean;
+    isInBuilding?: boolean;
+    placeTypes?: string[];
+  };
+}
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isTouchingGrass, setIsTouchingGrass] = useState(false);
+  const [isCreatingAttestation, setIsCreatingAttestation] = useState(false);
+  const [detectionResult, setDetectionResult] = useState<GrassDetectionResult | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isManualOverride, setIsManualOverride] = useState(false);
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const { login, authenticated, ready, logout, user } = usePrivy();
+  const { data: walletClient } = useWalletClient();
+  const [selectedAttestation, setSelectedAttestation] = useState<Attestation | null>(null);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // Function to calculate the proper center position
+  const getMapCenter = (lat: number, lng: number) => {
+    return {
+      lat: lat - MAP_OFFSET,
+      lng: lng
+    };
+  };
+
+  const handleMapLoad = (map: google.maps.Map) => {
+    mapRef.current = map;
+    
+    // If we already have a location, center the map properly
+    if (location) {
+      map.setCenter(getMapCenter(location.lat, location.lng));
+      map.setZoom(MAP_ZOOM);
+    }
+  };
+
+  // Function to check if user is touching grass
+  const checkTouchingGrass = async (lat: number, lng: number) => {
+    if (!mapRef.current) {
+      console.error('Map not initialized');
+      return;
+    }
+
+    setIsAnalyzing(true);
+    try {
+      // Phase 1: Analyze places data
+      const placesResult = await analyzePlacesData(lat, lng, mapRef.current, isManualOverride);
+
+      // Calculate final result
+      const isTouchingGrass = placesResult.isInPark && !placesResult.isInBuilding;
+      const confidence = Math.max(0, Math.min(100, placesResult.confidence));
+
+      const result: GrassDetectionResult = {
+        isTouchingGrass,
+        confidence,
+        reasons: placesResult.reasons,
+        explanations: placesResult.explanations,
+        debugInfo: {
+          isInPark: placesResult.isInPark,
+          isInBuilding: placesResult.isInBuilding,
+          placeTypes: placesResult.placeTypes,
+        }
+      };
+
+      setDetectionResult(result);
+      setIsTouchingGrass(isTouchingGrass);
+    } catch (error) {
+      console.error('Error analyzing location:', error);
+      setDetectionResult({
+        isTouchingGrass: false,
+        confidence: 0,
+        reasons: ['Error analyzing location'],
+        explanations: {
+          positive: [],
+          negative: ["We encountered an error analyzing your location."]
+        }
+      });
+      setIsTouchingGrass(false);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const newLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setLocation(newLocation);
+          setIsLoading(false);
+          // Only run checkTouchingGrass if map is initialized
+          if (mapRef.current) {
+            checkTouchingGrass(newLocation.lat, newLocation.lng);
+          }
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+          setIsLoading(false);
+        }
+      );
+    }
+  }, [mapRef.current]); // Add mapRef.current as a dependency
+
+  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
+    if (!e.latLng || !mapRef.current) return;
+    
+    const newLocation = {
+      lat: e.latLng.lat(),
+      lng: e.latLng.lng()
+    };
+    
+    // Reset zoom and center consistently
+    mapRef.current.setZoom(MAP_ZOOM);
+    mapRef.current.setCenter(getMapCenter(newLocation.lat, newLocation.lng));
+    
+    setLocation(newLocation);
+    setIsManualOverride(false);
+    await checkTouchingGrass(newLocation.lat, newLocation.lng);
+  };
+
+  const handleCreateAttestation = async () => {
+    if (!location || !authenticated || !walletClient) {
+      console.error('Missing required data:', {
+        hasLocation: !!location,
+        isAuthenticated: authenticated,
+        hasWalletClient: !!walletClient
+      });
+      alert('Please ensure you are connected with your wallet and have a valid location.');
+      return;
+    }
+
+    try {
+      setIsCreatingAttestation(true);
+      console.log('Creating attestation with:', {
+        location,
+        isTouchingGrass,
+        walletAddress: walletClient.account.address
+      });
+      
+      const tx = await createGrassAttestation(
+        walletClient,
+        location.lat,
+        location.lng,
+        isTouchingGrass
+      );
+      console.log('Transaction:', tx);
+      alert('Successfully created attestation!');
+    } catch (error) {
+      console.error('Error creating attestation:', error);
+      if (error instanceof Error) {
+        alert(`Failed to create attestation: ${error.message}`);
+      } else {
+        alert('Failed to create attestation. Please check the console for details.');
+      }
+    } finally {
+      setIsCreatingAttestation(false);
+    }
+  };
+
+  const handleAttestationSelect = (attestation: Attestation | null) => {
+    setSelectedAttestation(attestation);
+    // Center map on the attestation location if one is selected
+    if (attestation && mapRef.current) {
+      mapRef.current.panTo({ lat: attestation.lat, lng: attestation.lon });
+    }
+  };
+
+  if (!ready) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <main className="relative min-h-screen">
+      {/* Map Container */}
+      <div className="absolute inset-0">
+        {location && (
+          <LoadScript 
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+            libraries={libraries}
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+            <GoogleMap
+              mapContainerStyle={mapContainerStyle}
+              center={location ? getMapCenter(location.lat, location.lng) : undefined}
+              zoom={MAP_ZOOM}
+              options={mapOptions}
+              onClick={handleMapClick}
+              onLoad={handleMapLoad}
+            >
+              {location && <Marker position={location} />}
+            </GoogleMap>
+          </LoadScript>
+        )}
+      </div>
+
+      {/* Bottom Overlay Content */}
+      <div className="fixed bottom-0 left-0 right-0 z-10 p-4">
+        <div className="max-w-3xl mx-auto">
+          {!authenticated ? (
+            <div className="p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono">
+              <div className="flex items-center justify-between text-xs opacity-60 mb-4">
+                <span>STATUS</span>
+              </div>
+              <div className="flex flex-col items-center justify-center py-4">
+                <div className="text-red-400 text-sm mb-4">WALLET NOT CONNECTED</div>
+                <button
+                  onClick={login}
+                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold tracking-wide"
+                >
+                  Connect Wallet
+                </button>
+              </div>
+            </div>
+          ) : (
+            <StatusCards
+              isLoading={isLoading}
+              location={location}
+              isAnalyzing={isAnalyzing}
+              isTouchingGrass={isTouchingGrass}
+              detectionResult={detectionResult}
+              isManualOverride={isManualOverride}
+              onManualOverride={() => {
+                setIsManualOverride(true);
+                if (location) {
+                  checkTouchingGrass(location.lat, location.lng);
+                }
+              }}
+              walletAddress={user?.wallet?.address}
+              onDisconnect={logout}
+              onCreateAttestation={handleCreateAttestation}
+              isCreatingAttestation={isCreatingAttestation}
+              selectedAttestation={selectedAttestation}
+              onSelectAttestation={handleAttestationSelect}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+          )}
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }

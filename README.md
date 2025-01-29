@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Touch Grass
+
+A Web3 dApp that lets you prove you've touched grass using the Ethereum Attestation Service (EAS) on Base.
+
+## Features
+
+- 🌱 Verify and attest to touching grass using geolocation
+- 🗺️ Interactive map interface with park detection
+- ⛓️ On-chain attestations using EAS on Base
+- 🎨 Modern UI with Tailwind CSS
+- 🔒 Secure wallet connection with Privy
+
+## Tech Stack
+
+- Next.js 14 with App Router
+- TypeScript
+- Tailwind CSS
+- Ethereum Attestation Service (EAS)
+- Viem & Wagmi for Web3
+- Google Maps API
+- Privy for Wallet Connection
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/rheeger/touch-grass.git
+   cd touch-grass
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+3. Create a `.env.local` file with your API keys:
+   ```
+   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+   NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
+   ```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4. Run the development server:
+   ```bash
+   npm run dev
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Learn More
+## Smart Contract Details
 
-To learn more about Next.js, take a look at the following resources:
+- EAS Contract (Base): `0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587`
+- Schema Registry (Base): `0x720c2bA66D19A725143FBf5fDC5b4ADA2742682E`
+- Schema: `bool isTouchingGrass, int256 lat, int256 lon`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT
