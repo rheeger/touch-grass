@@ -7,7 +7,11 @@ const EAS_CONTRACT_ADDRESS = "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as con
 const EAS_GRAPHQL_API = "https://base.easscan.org/graphql" as const;
 
 // Schema definition
-let SCHEMA_UID: string | null = null;
+const SCHEMA_UID = "0xba4171c92572b1e4f241d044c32cdf083be9fd946b8766977558ca6378c824e2" as const;
+const SCHEMA_RAW = "uint256 eventTimestamp,string srs,string locationType,string location,string[] recipeType,bytes[] recipePayload,string[] mediaType,string[] mediaData,string memo" as const;
+
+// Media type for touch grass attestations
+const TOUCH_GRASS_MEDIA_TYPE = "rheeger/touch-grass-v0.1" as const;
 
 // Zero hash for refUID
 const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
@@ -62,15 +66,69 @@ function logError(error: unknown, context: Record<string, unknown> = {}) {
   console.error('=====================================');
 }
 
+// Convert location to GeoJSON format
+function toGeoJSON(lon: number, lat: number): string {
+  return JSON.stringify({
+    type: "Point",
+    coordinates: [lon, lat]
+  });
+}
+
+// Extract coordinates from GeoJSON
+function fromGeoJSON(geoJSON: string): { lat: number; lon: number } {
+  const data = JSON.parse(geoJSON);
+  if (data.type !== "Point" || !Array.isArray(data.coordinates) || data.coordinates.length !== 2) {
+    throw new Error("Invalid GeoJSON format");
+  }
+  return {
+    lon: data.coordinates[0],
+    lat: data.coordinates[1]
+  };
+}
+
+// Create media data for touch grass attestation
+function createTouchGrassMediaData(isTouchingGrass: boolean): string {
+  return JSON.stringify({
+    isTouchingGrass,
+    version: "0.1"
+  });
+}
+
+// Extract touch grass status from media data
+function extractTouchGrassStatus(mediaData: string): boolean {
+  try {
+    const data = JSON.parse(mediaData);
+    return !!data.isTouchingGrass;
+  } catch (error) {
+    console.error("Failed to parse touch grass media data:", error);
+    return false;
+  }
+}
+
 // Decode attestation data
 function decodeAttestationData(encodedData: string): { isTouchingGrass: boolean; lat: number; lon: number } {
-  const schemaEncoder = new SchemaEncoder("bool isTouchingGrass, int256 lat, int256 lon");
+  const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
   const decodedData = schemaEncoder.decodeData(encodedData);
   
+  // Find the location and media data in the decoded array
+  const location = decodedData.find(field => field.name === "location")?.value.value as string;
+  const mediaData = decodedData.find(field => field.name === "mediaData")?.value.value as string[];
+  
+  if (!location || !mediaData?.length) {
+    throw new Error("Missing required fields in attestation data");
+  }
+
+  // Extract coordinates from GeoJSON
+  const coordinates = fromGeoJSON(location);
+  
+  // Extract touch grass status from media data
+  // We assume the first media data entry is the touch grass status
+  const isTouchingGrass = extractTouchGrassStatus(mediaData[0]);
+  
   return {
-    isTouchingGrass: decodedData[0].value.value as boolean,
-    lat: fromFixed(decodedData[1].value.value as bigint),
-    lon: fromFixed(decodedData[2].value.value as bigint)
+    isTouchingGrass,
+    lat: coordinates.lat,
+    lon: coordinates.lon
   };
 }
 
@@ -79,7 +137,7 @@ async function initializeSchemaUID(): Promise<void> {
   try {
     const schemaQuery = `
       query GetSchema {
-        schemata(where: { schema: { equals: "bool isTouchingGrass, int256 lat, int256 lon" } }) {
+        schemata(where: { id: { equals: "${SCHEMA_UID}" } }) {
           id
           schema
           resolver
@@ -99,12 +157,12 @@ async function initializeSchemaUID(): Promise<void> {
     const json = await response.json();
     console.log('Schema search response:', json);
     
-    if (json.data?.schemata?.length > 0) {
-      SCHEMA_UID = json.data.schemata[0].id;
-      console.log('Found existing schema:', SCHEMA_UID);
+    if (!json.data?.schemata?.length) {
+      throw new Error("Schema not found. Please ensure you're using the correct schema UID.");
     }
   } catch (error) {
-    console.error('Failed to initialize schema UID:', error);
+    console.error('Failed to verify schema:', error);
+    throw error;
   }
 }
 
@@ -250,11 +308,27 @@ export async function createGrassAttestation(
     await ensureBaseChain(walletClient);
 
     // Initialize SchemaEncoder with the schema string
-    const schemaEncoder = new SchemaEncoder("bool isTouchingGrass, int256 lat, int256 lon");
+    const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
+    
+    // Create the location GeoJSON
+    const locationGeoJSON = toGeoJSON(lon, lat);
+    
+    // Create the touch grass media data
+    const touchGrassData = createTouchGrassMediaData(isTouchingGrass);
+    
+    // Current timestamp in seconds
+    const eventTimestamp = BigInt(Math.floor(Date.now() / 1000));
+
     const encodedData = schemaEncoder.encodeData([
-      { name: "isTouchingGrass", type: "bool", value: isTouchingGrass },
-      { name: "lat", type: "int256", value: toFixed(lat) },
-      { name: "lon", type: "int256", value: toFixed(lon) }
+      { name: "eventTimestamp", type: "uint256", value: eventTimestamp },
+      { name: "srs", type: "string", value: "gps" },
+      { name: "locationType", type: "string", value: "GeoJSON:Point" },
+      { name: "location", type: "string", value: locationGeoJSON },
+      { name: "recipeType", type: "string[]", value: [] },
+      { name: "recipePayload", type: "bytes[]", value: [] },
+      { name: "mediaType", type: "string[]", value: [TOUCH_GRASS_MEDIA_TYPE] },
+      { name: "mediaData", type: "string[]", value: [touchGrassData] },
+      { name: "memo", type: "string", value: "" } // could allow user to add some comment or tag
     ]);
 
     console.log('Encoded data:', encodedData);
@@ -291,7 +365,7 @@ export async function createGrassAttestation(
       }],
       functionName: "attest",
       args: [{
-        schema: (SCHEMA_UID || ZERO_BYTES32) as `0x${string}`,
+        schema: SCHEMA_UID,
         data: {
           recipient: walletClient.account.address,
           expirationTime: BigInt(0),
