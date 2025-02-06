@@ -1,21 +1,59 @@
 import { SchemaEncoder } from "@ethereum-attestation-service/eas-sdk";
-import { type WalletClient } from "viem";
 import { base } from "viem/chains";
+import { Interface } from "@ethersproject/abi";
+import type { UnsignedTransactionRequest } from "@privy-io/react-auth";
 
 // Base Mainnet EAS Contract: https://base.easscan.org/
-const EAS_CONTRACT_ADDRESS = "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as const;
+const EAS_CONTRACT_ADDRESS =
+  "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as const;
 const EAS_GRAPHQL_API = "https://base.easscan.org/graphql" as const;
 
+// EAS ABI for the attest function
+const EAS_ABI = [
+  {
+    name: "attest",
+    type: "function",
+    stateMutability: "payable",
+    inputs: [
+      {
+        name: "request",
+        type: "tuple",
+        components: [
+          { name: "schema", type: "bytes32" },
+          {
+            name: "data",
+            type: "tuple",
+            components: [
+              { name: "recipient", type: "address" },
+              { name: "expirationTime", type: "uint64" },
+              { name: "revocable", type: "bool" },
+              { name: "refUID", type: "bytes32" },
+              { name: "data", type: "bytes" },
+              { name: "value", type: "uint256" },
+            ],
+          },
+        ],
+      },
+    ],
+    outputs: [{ name: "", type: "bytes32" }],
+  },
+];
+
+// Create interface for encoding
+const easInterface = new Interface(EAS_ABI);
+
 // Schema definition
-const SCHEMA_UID = "0xba4171c92572b1e4f241d044c32cdf083be9fd946b8766977558ca6378c824e2" as const;
-const SCHEMA_RAW = "uint256 eventTimestamp,string srs,string locationType,string location,string[] recipeType,bytes[] recipePayload,string[] mediaType,string[] mediaData,string memo" as const;
+const SCHEMA_UID =
+  "0xba4171c92572b1e4f241d044c32cdf083be9fd946b8766977558ca6378c824e2" as const;
+const SCHEMA_RAW =
+  "uint256 eventTimestamp,string srs,string locationType,string location,string[] recipeType,bytes[] recipePayload,string[] mediaType,string[] mediaData,string memo" as const;
 
 // Media type for touch grass attestations
 const TOUCH_GRASS_MEDIA_TYPE = "rheeger/touch-grass-v0.1" as const;
 
 // Zero hash for refUID
-const ZERO_BYTES32 = "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
-
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
 interface GraphQLAttestation {
   id: string;
@@ -38,51 +76,27 @@ export interface Attestation {
   txHash: `0x${string}`;
 }
 
-// Convert fixed point to floating point
-function fromFixed(num: bigint): number {
-  return Number(num) / 10000000;
-}
-
-// Convert floating point to fixed point with 7 decimal places
-function toFixed(num: number): bigint {
-  return BigInt(Math.round(num * 10000000));
-}
-
-// Enhanced error logging
-function logError(error: unknown, context: Record<string, unknown> = {}) {
-  console.error('=== EAS Attestation Error Details ===');
-  console.error('Context:', JSON.stringify(context, null, 2));
-  if (error instanceof Error) {
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    // Log cause if available
-    if ('cause' in error && error.cause) {
-      console.error('Error cause:', error.cause);
-    }
-  } else {
-    console.error('Raw error:', error);
-  }
-  console.error('=====================================');
-}
-
 // Convert location to GeoJSON format
 function toGeoJSON(lon: number, lat: number): string {
   return JSON.stringify({
     type: "Point",
-    coordinates: [lon, lat]
+    coordinates: [lon, lat],
   });
 }
 
 // Extract coordinates from GeoJSON
 function fromGeoJSON(geoJSON: string): { lat: number; lon: number } {
   const data = JSON.parse(geoJSON);
-  if (data.type !== "Point" || !Array.isArray(data.coordinates) || data.coordinates.length !== 2) {
+  if (
+    data.type !== "Point" ||
+    !Array.isArray(data.coordinates) ||
+    data.coordinates.length !== 2
+  ) {
     throw new Error("Invalid GeoJSON format");
   }
   return {
     lon: data.coordinates[0],
-    lat: data.coordinates[1]
+    lat: data.coordinates[1],
   };
 }
 
@@ -90,7 +104,7 @@ function fromGeoJSON(geoJSON: string): { lat: number; lon: number } {
 function createTouchGrassMediaData(isTouchingGrass: boolean): string {
   return JSON.stringify({
     isTouchingGrass,
-    version: "0.1"
+    version: "0.1",
   });
 }
 
@@ -106,29 +120,35 @@ function extractTouchGrassStatus(mediaData: string): boolean {
 }
 
 // Decode attestation data
-function decodeAttestationData(encodedData: string): { isTouchingGrass: boolean; lat: number; lon: number } {
+function decodeAttestationData(encodedData: string): {
+  isTouchingGrass: boolean;
+  lat: number;
+  lon: number;
+} {
   const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
   const decodedData = schemaEncoder.decodeData(encodedData);
-  
+
   // Find the location and media data in the decoded array
-  const location = decodedData.find(field => field.name === "location")?.value.value as string;
-  const mediaData = decodedData.find(field => field.name === "mediaData")?.value.value as string[];
-  
+  const location = decodedData.find((field) => field.name === "location")?.value
+    .value as string;
+  const mediaData = decodedData.find((field) => field.name === "mediaData")
+    ?.value.value as string[];
+
   if (!location || !mediaData?.length) {
     throw new Error("Missing required fields in attestation data");
   }
 
   // Extract coordinates from GeoJSON
   const coordinates = fromGeoJSON(location);
-  
+
   // Extract touch grass status from media data
   // We assume the first media data entry is the touch grass status
   const isTouchingGrass = extractTouchGrassStatus(mediaData[0]);
-  
+
   return {
     isTouchingGrass,
     lat: coordinates.lat,
-    lon: coordinates.lon
+    lon: coordinates.lon,
   };
 }
 
@@ -147,21 +167,23 @@ async function initializeSchemaUID(): Promise<void> {
     `;
 
     const response = await fetch(EAS_GRAPHQL_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        query: schemaQuery
-      })
+        query: schemaQuery,
+      }),
     });
 
     const json = await response.json();
-    console.log('Schema search response:', json);
-    
+    console.log("Schema search response:", json);
+
     if (!json.data?.schemata?.length) {
-      throw new Error("Schema not found. Please ensure you're using the correct schema UID.");
+      throw new Error(
+        "Schema not found. Please ensure you're using the correct schema UID."
+      );
     }
   } catch (error) {
-    console.error('Failed to verify schema:', error);
+    console.error("Failed to verify schema:", error);
     throw error;
   }
 }
@@ -169,24 +191,44 @@ async function initializeSchemaUID(): Promise<void> {
 // Call initialization on module load
 initializeSchemaUID().catch(console.error);
 
-export async function getAttestations(address?: `0x${string}`): Promise<Attestation[]> {
+export async function getAttestations(
+  address?: `0x${string}`
+): Promise<Attestation[]> {
   try {
     // If schema UID is not initialized, try to initialize it
     if (!SCHEMA_UID) {
       await initializeSchemaUID();
       // If still no schema UID after initialization, return empty array
       if (!SCHEMA_UID) {
-        console.log('No schema found. Create an attestation to register the schema.');
+        console.log(
+          "No schema found. Create an attestation to register the schema."
+        );
         return [];
       }
     }
 
-    // GraphQL query for attestations with more fields
+    // Build the where clause
+    const whereClause = {
+      schemaId: {
+        equals: SCHEMA_UID
+      },
+      revoked: false,
+      OR: [
+        { attester: { equals: address?.toLowerCase() } },
+        { recipient: { equals: address?.toLowerCase() } }
+      ]
+    };
+
+    const variables = {
+      where: whereClause,
+    };
+
+    // GraphQL query for attestations
     const query = `
-      query GetAttestations($where: AttestationWhereInput) {
+      query GetAttestations($where: AttestationWhereInput!) {
         attestations(
-          where: $where,
-          orderBy: { time: desc }
+          where: $where
+          orderBy: [{ time: desc }]
           take: 100
         ) {
           id
@@ -196,192 +238,137 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
           data
           revoked
           txid
-          schemaId
         }
       }
     `;
 
-    const variables = {
-      where: {
-        schemaId: { equals: SCHEMA_UID },
-        revoked: { equals: false },
-        ...(address ? { attester: { equals: address.toLowerCase() } } : {})
-      }
-    };
-
-    console.log('Fetching attestations with:', {
+    console.log("Fetching attestations with:", {
       endpoint: EAS_GRAPHQL_API,
       variables,
       address,
-      schemaId: SCHEMA_UID
+      schemaId: SCHEMA_UID,
+      whereClause,
     });
 
     const response = await fetch(EAS_GRAPHQL_API, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         query,
-        variables
-      })
+        variables,
+      }),
     });
 
     const json = await response.json();
-    console.log('Raw attestation response:', json);
-    
+    console.log("Raw attestation response:", json);
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     if (json.errors) {
+      console.error("GraphQL errors:", json.errors);
       throw new Error(`GraphQL Error: ${JSON.stringify(json.errors)}`);
     }
 
+    if (!json.data?.attestations) {
+      console.warn("No attestations found in response:", json);
+      return [];
+    }
+
     // Process and decode the attestations
-    const attestations = json.data.attestations.map((attestation: GraphQLAttestation) => {
-      const decodedData = decodeAttestationData(attestation.data);
-      
-      return {
-        id: attestation.id as `0x${string}`,
-        attester: attestation.attester as `0x${string}`,
-        recipient: attestation.recipient as `0x${string}`,
-        timestamp: new Date(Number(attestation.time) * 1000),
-        ...decodedData,
-        txHash: attestation.txid as `0x${string}`
-      };
-    });
+    const attestations = json.data.attestations.map(
+      (attestation: GraphQLAttestation) => {
+        const decodedData = decodeAttestationData(attestation.data);
+
+        return {
+          id: attestation.id as `0x${string}`,
+          attester: attestation.attester as `0x${string}`,
+          recipient: attestation.recipient as `0x${string}`,
+          timestamp: new Date(Number(attestation.time) * 1000),
+          ...decodedData,
+          txHash: attestation.txid as `0x${string}`,
+        };
+      }
+    );
 
     return attestations;
   } catch (error) {
-    console.error('Failed to fetch attestations:', error);
+    console.error("Failed to fetch attestations:", error);
     throw error;
   }
 }
 
-async function ensureBaseChain(walletClient: WalletClient): Promise<void> {
-  const chainId = await walletClient.getChainId();
-  if (chainId === base.id) return;
-
-  try {
-    // Try to switch chain
-    await walletClient.switchChain({ id: base.id });
-    console.log('Successfully switched to Base');
-  } catch (switchError) {
-    logError(switchError, { action: 'switchChain', targetChain: base.id });
-    
-    // If the chain hasn't been added yet, try to add it
-    if ((switchError as Error).message.includes('Unrecognized chain')) {
-      try {
-        await walletClient.addChain({ chain: base });
-        // Try switching again after adding
-        await walletClient.switchChain({ id: base.id });
-        console.log('Successfully added and switched to Base');
-      } catch (addError) {
-        logError(addError, { action: 'addChain', chain: base });
-        throw new Error('Failed to add Base network to wallet. Please add it manually.');
-      }
-    } else {
-      throw new Error('Failed to switch to Base network. Please switch manually in your wallet.');
-    }
-  }
-}
-
-export async function createGrassAttestation(
-  walletClient: WalletClient,
+export function prepareGrassAttestation(
+  walletAddress: string,
   lat: number,
   lon: number,
   isTouchingGrass: boolean
-) {
-  const context = {
-    walletAddress: walletClient.account?.address,
-    coordinates: { lat, lon },
-    isTouchingGrass,
-    targetChain: {
-      id: base.id,
-      name: base.name
-    }
+): UnsignedTransactionRequest {
+  // Initialize SchemaEncoder with the schema string
+  const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
+
+  // Create the location GeoJSON
+  const locationGeoJSON = toGeoJSON(lon, lat);
+
+  // Create the touch grass media data
+  const touchGrassData = createTouchGrassMediaData(isTouchingGrass);
+
+  // Current timestamp in seconds
+  const eventTimestamp = BigInt(Math.floor(Date.now() / 1000));
+
+  const encodedData = schemaEncoder.encodeData([
+    { name: "eventTimestamp", type: "uint256", value: eventTimestamp },
+    { name: "srs", type: "string", value: "gps" },
+    { name: "locationType", type: "string", value: "GeoJSON:Point" },
+    { name: "location", type: "string", value: locationGeoJSON },
+    { name: "recipeType", type: "string[]", value: [] },
+    { name: "recipePayload", type: "bytes[]", value: [] },
+    { name: "mediaType", type: "string[]", value: [TOUCH_GRASS_MEDIA_TYPE] },
+    { name: "mediaData", type: "string[]", value: [touchGrassData] },
+    { name: "memo", type: "string", value: "" },
+  ]);
+
+  // Create the attestation data
+  const attestationRequest = {
+    schema: SCHEMA_UID,
+    data: {
+      recipient: walletAddress,
+      expirationTime: BigInt(0),
+      revocable: true,
+      refUID: ZERO_BYTES32,
+      data: encodedData,
+      value: BigInt(0),
+    },
   };
 
-  try {
-    if (!walletClient.account) {
-      throw new Error('No wallet account found');
-    }
+  // Encode the function call
+  const encodedFunction = easInterface.encodeFunctionData("attest", [attestationRequest]);
 
-    // Ensure we're on Base network
-    await ensureBaseChain(walletClient);
+  // Return the unsigned transaction request
+  return {
+    to: EAS_CONTRACT_ADDRESS,
+    data: encodedFunction,
+    value: '0x0',
+    chainId: base.id,
+  };
+}
 
-    // Initialize SchemaEncoder with the schema string
-    const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
-    
-    // Create the location GeoJSON
-    const locationGeoJSON = toGeoJSON(lon, lat);
-    
-    // Create the touch grass media data
-    const touchGrassData = createTouchGrassMediaData(isTouchingGrass);
-    
-    // Current timestamp in seconds
-    const eventTimestamp = BigInt(Math.floor(Date.now() / 1000));
-
-    const encodedData = schemaEncoder.encodeData([
-      { name: "eventTimestamp", type: "uint256", value: eventTimestamp },
-      { name: "srs", type: "string", value: "gps" },
-      { name: "locationType", type: "string", value: "GeoJSON:Point" },
-      { name: "location", type: "string", value: locationGeoJSON },
-      { name: "recipeType", type: "string[]", value: [] },
-      { name: "recipePayload", type: "bytes[]", value: [] },
-      { name: "mediaType", type: "string[]", value: [TOUCH_GRASS_MEDIA_TYPE] },
-      { name: "mediaData", type: "string[]", value: [touchGrassData] },
-      { name: "memo", type: "string", value: "" } // could allow user to add some comment or tag
-    ]);
-
-    console.log('Encoded data:', encodedData);
-
-    // Create the attestation using viem directly
-    const hash = await walletClient.writeContract({
-      chain: base,
-      account: walletClient.account.address,
-      address: EAS_CONTRACT_ADDRESS as `0x${string}`,
-      abi: [{
-        name: "attest",
-        type: "function",
-        stateMutability: "payable",
-        inputs: [
-          {
-            name: "request",
-            type: "tuple",
-            components: [
-              { name: "schema", type: "bytes32" },
-              { name: "data", type: "tuple", 
-                components: [
-                  { name: "recipient", type: "address" },
-                  { name: "expirationTime", type: "uint64" },
-                  { name: "revocable", type: "bool" },
-                  { name: "refUID", type: "bytes32" },
-                  { name: "data", type: "bytes" },
-                  { name: "value", type: "uint256" }
-                ]
-              }
-            ]
-          }
-        ],
-        outputs: [{ name: "", type: "bytes32" }]
-      }],
-      functionName: "attest",
-      args: [{
-        schema: SCHEMA_UID,
-        data: {
-          recipient: walletClient.account.address,
-          expirationTime: BigInt(0),
-          revocable: true,
-          refUID: ZERO_BYTES32,
-          data: encodedData as `0x${string}`,
-          value: BigInt(0)
-        }
-      }],
-      value: BigInt(0)
-    });
-
-    console.log('Transaction created:', hash);
-    return hash;
-  } catch (error) {
-    logError(error, context);
-    throw error; // Re-throw to handle in the component
-  }
-} 
+export function getTransactionUIOptions(isTouchingGrass: boolean) {
+  return {
+    description: `Attest that you are ${isTouchingGrass ? '' : 'not '}touching grass`,
+    buttonText: 'Create Attestation',
+    successHeader: 'Attestation Created!',
+    successDescription: `Successfully attested that you are ${isTouchingGrass ? '' : 'not '}touching grass`,
+    transactionInfo: {
+      title: 'Touch Grass Attestation',
+      action: 'Create Attestation',
+      contractInfo: {
+        name: 'EAS (Ethereum Attestation Service)',
+        url: 'https://base.easscan.org/',
+      },
+    },
+  };
+}

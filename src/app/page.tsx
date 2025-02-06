@@ -2,9 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { GoogleMap, LoadScript, Marker } from '@react-google-maps/api';
-import { usePrivy } from '@privy-io/react-auth';
-import { createGrassAttestation } from '@/utils/eas';
-import { useWalletClient } from 'wagmi';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { prepareGrassAttestation, getAttestations } from '@/utils/eas';
 import { analyzePlacesData } from '@/utils/places';
 import { type Attestation } from '@/utils/eas';
 import { StatusCards } from '@/components/StatusCards';
@@ -61,8 +60,33 @@ export default function Home() {
   const [isManualOverride, setIsManualOverride] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
   const { login, authenticated, ready, logout, user } = usePrivy();
-  const { data: walletClient } = useWalletClient();
+  const { wallets } = useWallets();
   const [selectedAttestation, setSelectedAttestation] = useState<Attestation | null>(null);
+  const [attestations, setAttestations] = useState<Attestation[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+
+  // Load attestation history when wallet is connected
+  useEffect(() => {
+    const loadAttestations = async () => {
+      if (!authenticated || !wallets.length) return;
+
+      try {
+        setIsLoadingHistory(true);
+        const connectedWallet = wallets.find(w => w.walletClientType === 'metamask');
+        if (!connectedWallet) return;
+
+        const history = await getAttestations(connectedWallet.address as `0x${string}`);
+        console.log('Loaded attestation history:', history);
+        setAttestations(history);
+      } catch (error) {
+        console.error('Error loading attestation history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadAttestations();
+  }, [authenticated, wallets]);
 
   // Function to calculate the proper center position
   const getMapCenter = (lat: number, lng: number) => {
@@ -176,11 +200,10 @@ export default function Home() {
   };
 
   const handleCreateAttestation = async () => {
-    if (!location || !authenticated || !walletClient) {
+    if (!location || !authenticated) {
       console.error('Missing required data:', {
         hasLocation: !!location,
         isAuthenticated: authenticated,
-        hasWalletClient: !!walletClient
       });
       alert('Please ensure you are connected with your wallet and have a valid location.');
       return;
@@ -188,20 +211,74 @@ export default function Home() {
 
     try {
       setIsCreatingAttestation(true);
+
+      // Find the connected MetaMask wallet
+      const connectedWallet = wallets.find(w => w.walletClientType === 'metamask');
+      
+      if (!connectedWallet) {
+        console.error('MetaMask wallet not found', { 
+          availableWallets: wallets.map(w => ({ 
+            type: w.walletClientType, 
+            address: w.address 
+          }))
+        });
+        alert('Please ensure MetaMask is properly connected.');
+        return;
+      }
+
       console.log('Creating attestation with:', {
         location,
         isTouchingGrass,
-        walletAddress: walletClient.account.address
+        walletAddress: connectedWallet.address,
+        walletType: connectedWallet.walletClientType
       });
       
-      const tx = await createGrassAttestation(
-        walletClient,
+      // Prepare the transaction
+      const tx = prepareGrassAttestation(
+        connectedWallet.address,
         location.lat,
         location.lng,
         isTouchingGrass
       );
-      console.log('Transaction:', tx);
+
+      // Send the transaction directly through MetaMask
+      const provider = await connectedWallet.getEthereumProvider();
+      const result = await provider.request({
+        method: 'eth_sendTransaction',
+        params: [{
+          from: connectedWallet.address,
+          to: tx.to,
+          data: tx.data,
+          value: tx.value,
+        }],
+      });
+
+      console.log('Transaction:', result);
       alert('Successfully created attestation!');
+
+      // Wait for the transaction to be mined and indexed
+      const retryAttestation = async (retries = 10, delay = 5000) => {
+        for (let i = 0; i < retries; i++) {
+          // Wait for the specified delay
+          await new Promise(resolve => setTimeout(resolve, delay));
+
+          // Try to fetch attestations
+          const history = await getAttestations(connectedWallet.address as `0x${string}`);
+          console.log(`Retry ${i + 1}: Found ${history.length} attestations`);
+
+          if (history.length > attestations.length) {
+            setAttestations(history);
+            return;
+          }
+
+          // Increase delay for next retry
+          delay = delay * 1.5;
+        }
+        console.log('Failed to fetch new attestation after retries');
+      };
+
+      // Start the retry process
+      retryAttestation();
     } catch (error) {
       console.error('Error creating attestation:', error);
       if (error instanceof Error) {
@@ -231,21 +308,35 @@ export default function Home() {
       {/* Map Container */}
       <div className="absolute inset-0">
         {location && (
-            <LoadScript 
-              googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
-              libraries={libraries}
-            >
-              <GoogleMap
+          <LoadScript 
+            googleMapsApiKey={process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || ''}
+            libraries={libraries}
+          >
+            <GoogleMap
               mapContainerStyle={mapContainerStyle}
               center={location ? getMapCenter(location.lat, location.lng) : undefined}
-                zoom={MAP_ZOOM}
+              zoom={MAP_ZOOM}
               options={mapOptions}
-                onClick={handleMapClick}
-                onLoad={handleMapLoad}
-              >
+              onClick={handleMapClick}
+              onLoad={handleMapLoad}
+            >
               {location && <Marker position={location} />}
-              </GoogleMap>
-            </LoadScript>
+              {/* Show markers for historical attestations */}
+              {attestations.map((attestation) => (
+                <Marker
+                  key={attestation.id}
+                  position={{ lat: attestation.lat, lng: attestation.lon }}
+                  icon={{
+                    url: attestation.isTouchingGrass 
+                      ? '/icons/grass-marker.png' 
+                      : '/icons/no-grass-marker.png',
+                    scaledSize: new google.maps.Size(32, 32),
+                  }}
+                  onClick={() => setSelectedAttestation(attestation)}
+                />
+              ))}
+            </GoogleMap>
+          </LoadScript>
         )}
       </div>
 
@@ -262,33 +353,35 @@ export default function Home() {
                 <button
                   onClick={login}
                   className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-bold tracking-wide"
-            >
+                >
                   Connect Wallet
                 </button>
               </div>
-          </div>
+            </div>
           ) : (
-          <StatusCards 
+            <StatusCards 
               isLoading={isLoading}
-            location={location}
+              location={location}
               isAnalyzing={isAnalyzing}
-            isTouchingGrass={isTouchingGrass}
-            detectionResult={detectionResult}
-            isManualOverride={isManualOverride}
-            onManualOverride={() => {
-              setIsManualOverride(true);
-              if (location) {
-                checkTouchingGrass(location.lat, location.lng);
-              }
-            }}
+              isTouchingGrass={isTouchingGrass}
+              detectionResult={detectionResult}
+              isManualOverride={isManualOverride}
+              onManualOverride={() => {
+                setIsManualOverride(true);
+                if (location) {
+                  checkTouchingGrass(location.lat, location.lng);
+                }
+              }}
               walletAddress={user?.wallet?.address}
               onDisconnect={logout}
               onCreateAttestation={handleCreateAttestation}
               isCreatingAttestation={isCreatingAttestation}
               selectedAttestation={selectedAttestation}
-              onSelectAttestation={handleAttestationSelect}
-          />
-              )}
+              onSelectAttestation={setSelectedAttestation}
+              attestations={attestations}
+              isLoadingHistory={isLoadingHistory}
+            />
+          )}
         </div>
       </div>
     </main>
