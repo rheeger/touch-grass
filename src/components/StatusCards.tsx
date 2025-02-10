@@ -1,40 +1,73 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type Attestation, getAttestations } from '@/utils/eas';
-import { useAccount } from 'wagmi';
-import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+import { type Attestation } from '@/utils/eas';
 import confetti from 'canvas-confetti';
 
-interface DetectionResult {
-  isTouchingGrass: boolean;
-  confidence: number;
-  reasons: string[];
-  explanations: {
-    positive: string[];
-    negative: string[];
-  };
-  debugInfo?: {
-    isInPark?: boolean;
-    isInBuilding?: boolean;
-    placeTypes?: string[];
-  };
-}
-
-interface StatusCardsProps {
+export interface StatusCardsProps {
   isLoading: boolean;
   location: { lat: number; lng: number } | null;
   isAnalyzing: boolean;
   isTouchingGrass: boolean;
-  detectionResult: DetectionResult | null;
+  detectionResult: {
+    confidence: number;
+    reasons: string[];
+    explanations: {
+      positive: string[];
+      negative: string[];
+    };
+  } | null;
   isManualOverride: boolean;
   onManualOverride: () => void;
   walletAddress?: string;
+  userEmail?: string;
   onDisconnect: () => void;
+  onConnect: () => void;
+  isAuthenticated: boolean;
   onCreateAttestation: () => void;
   isCreatingAttestation: boolean;
   selectedAttestation: Attestation | null;
   onSelectAttestation: (attestation: Attestation | null) => void;
+  attestations: Attestation[];
+  isLoadingHistory: boolean;
+}
+
+// Add time formatting function
+function getRelativeTimeString(date: Date): string {
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks}w ago`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths}mo ago`;
+  }
+
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears}y ago`;
 }
 
 export function StatusCards({
@@ -46,34 +79,19 @@ export function StatusCards({
   isManualOverride,
   onManualOverride,
   walletAddress,
+  userEmail,
   onDisconnect,
+  onConnect,
+  isAuthenticated,
   onCreateAttestation,
   isCreatingAttestation,
   selectedAttestation,
-  onSelectAttestation
+  onSelectAttestation,
+  attestations,
+  isLoadingHistory,
 }: StatusCardsProps) {
-  const [showAttestations, setShowAttestations] = useState(false);
-  const { address } = useAccount();
-  const [attestations, setAttestations] = useState<Attestation[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
-
-  useEffect(() => {
-    async function loadAttestations() {
-      if (!address) return;
-      try {
-        setLoading(true);
-        const data = await getAttestations(address);
-        setAttestations(data);
-      } catch (error) {
-        console.error('Failed to load attestations:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadAttestations();
-  }, [address]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Handle success animation
   useEffect(() => {
@@ -94,228 +112,241 @@ export function StatusCards({
     }
   }, [isCreatingAttestation, showSuccessAnimation]);
 
-  // Handle attestation creation
-  const handleCreateAttestation = async () => {
-    try {
-      await onCreateAttestation();
-      setShowSuccessAnimation(true);
-    } catch (error) {
-      console.error('Failed to create attestation:', error);
-    }
-  };
-
-  // Format address for display
-  const formatAddress = (address: string | undefined) => {
-    if (!address) return 'Unknown';
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
-  };
-
-  const handleSwipe = (_: unknown, info: PanInfo) => {
-    setShowAttestations(info.offset.x > 0);
-  };
-
   return (
-    <div className="p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono relative overflow-hidden">
-      <div className="relative" style={{ height: 280 }}>
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={showAttestations ? 'attestations' : 'status'}
-            initial={{ x: showAttestations ? 300 : -300, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: showAttestations ? -300 : 300, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            drag="x"
-            dragConstraints={{ left: 0, right: 0 }}
-            dragElastic={0.7}
-            onDragEnd={handleSwipe}
-            className="w-full absolute inset-0"
-          >
-            {!showAttestations ? (
-              // Current Status Card
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs opacity-60 mb-2">
-                  <span>STATUS</span>
-                  <button 
-                    onClick={() => setShowAttestations(true)}
-                    className="text-green-400/60 hover:text-green-400"
-                  >
-                    View History →
-                  </button>
-                </div>
-                <h2 className="text-2xl font-bold mb-2">
-                  {isLoading ? (
-                    <span className="text-yellow-400">LOCATING...</span>
-                  ) : !location ? (
-                    <span className="text-red-400">LOCATION ACCESS DENIED</span>
-                  ) : isAnalyzing ? (
-                    <span className="text-yellow-400">ANALYZING LOCATION...</span>
-                  ) : isTouchingGrass ? (
-                    <span className="text-green-400">TOUCHING GRASS 🌱</span>
-                  ) : (
-                    <span className="text-red-400">NOT TOUCHING GRASS</span>
-                  )}
-                </h2>
-
-                {detectionResult?.debugInfo && (
-                  <div className="text-xs opacity-60 mb-4">
-                    {detectionResult.explanations && (
-                      <div className="mt-2">
-                        {isTouchingGrass ? (
-                          <div className="text-green-400/60">
-                            {detectionResult.explanations.positive[0] || "You're touching grass!"}
-                          </div>
-                        ) : (
-                          <div className="text-red-400/60">
-                            {detectionResult.explanations.negative[0] || "You're not touching grass."}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    
-                    {!isManualOverride && !isTouchingGrass && (
-                      <button
-                        onClick={onManualOverride}
-                        className="mt-2 text-blue-400/60 hover:text-blue-400"
-                      >
-                        I&apos;m definitely touching grass here
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div className="grid grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <div className="text-green-400/60 mb-1">WALLET</div>
-                    <div className="truncate mb-1">{formatAddress(walletAddress)}</div>
-                    <button onClick={onDisconnect} className="text-red-400/60 hover:text-red-400 text-[10px]">
-                      disconnect
-                    </button>
-                  </div>
-                  <div>
-                    <div className="text-green-400/60 mb-1">CHAIN</div>
-                    <div>Base</div>
-                  </div>
-                  {location && (
-                    <>
-                      <div>
-                        <div className="text-green-400/60 mb-1">LAT</div>
-                        <div>{location.lat.toFixed(6)}</div>
-                      </div>
-                      <div>
-                        <div className="text-green-400/60 mb-1">LON</div>
-                        <div>{location.lng.toFixed(6)}</div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            ) : (
-              // Attestations History Card
-              <div className="flex flex-col gap-2 h-full">
-                <div className="flex items-center justify-between text-xs opacity-60 mb-2">
-                  <button 
-                    onClick={() => setShowAttestations(false)}
-                    className="text-green-400/60 hover:text-green-400"
-                  >
-                    ← Back
-                  </button>
-                  <span>HISTORY</span>
-                </div>
-
-                {loading ? (
-                  <div className="flex flex-col justify-center items-center flex-grow">
-                    <div className="text-sm text-gray-400">Loading attestations...</div>
-                  </div>
-                ) : attestations.length === 0 ? (
-                  <div className="flex flex-col justify-center items-center flex-grow">
-                    <div className="text-sm text-gray-400">No attestations found.</div>
-                    <button 
-                      onClick={() => setShowAttestations(false)}
-                      className="mt-2 text-green-400/60 hover:text-green-400 text-sm"
+    <div className="relative w-full max-w-3xl">
+      <div className="overflow-hidden">
+        <div className={`flex transition-transform duration-300 ease-in-out ${isHistoryOpen ? '-translate-x-full' : 'translate-x-0'}`}>
+          {/* Main Status Card */}
+          <div className="flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col">
+            <div className="flex items-center justify-between text-xs mb-3">
+              <div className="flex items-center space-x-4">
+                {isHistoryOpen ? (
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => {
+                        setIsHistoryOpen(false);
+                        onSelectAttestation(null);
+                      }}
+                      className="text-white hover:text-gray-300 flex items-center space-x-2"
                     >
-                      Go touch some grass! →
+                      <span>←</span>
+                      <span>Back</span>
                     </button>
                   </div>
                 ) : (
-                  <div className="flex-grow overflow-y-auto scrollbar-thin scrollbar-thumb-green-400/20 scrollbar-track-transparent">
-                    <div className="space-y-2">
-                      {attestations.map((attestation) => (
-                        <div
-                          key={attestation.id}
-                          onClick={() => onSelectAttestation(attestation)}
-                          className="p-2 rounded bg-white/5 hover:bg-white/10 cursor-pointer transition-colors"
-                        >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className={`text-xs font-semibold ${
-                              attestation.isTouchingGrass ? 'text-green-400' : 'text-red-400'
-                            }`}>
-                              {attestation.isTouchingGrass ? 'TOUCHING GRASS' : 'NOT TOUCHING GRASS'}
-                            </span>
-                            <span className="text-xs text-gray-400">
-                              {new Date(attestation.timestamp).toLocaleDateString()}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-400">
-                            {attestation.lat.toFixed(6)}, {attestation.lon.toFixed(6)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {selectedAttestation && (
-                  <div className="p-3 rounded bg-white/5">
-                    <h3 className="text-sm font-medium mb-2 text-green-400/60">Selected Attestation</h3>
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-gray-400">Time: </span>
-                        {selectedAttestation.timestamp.toLocaleString()}
-                      </div>
-                      <div>
-                        <span className="text-gray-400">Location: </span>
-                        {selectedAttestation.lat.toFixed(6)}, {selectedAttestation.lon.toFixed(6)}
-                      </div>
-                      <div>
-                        <a
-                          href={`https://basescan.org/tx/${selectedAttestation.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-400 hover:text-blue-300"
-                        >
-                          View on BaseScan →
-                        </a>
-                      </div>
-                    </div>
-                  </div>
+                  <span className="opacity-60">
+                    {attestations.length > 0 ? (
+                      <button
+                        onClick={() => setIsHistoryOpen(true)}
+                        className="text-white hover:text-gray-300 flex items-center space-x-2"
+                      >
+                        <span>HISTORY</span>
+                        <span>({attestations.length})</span>
+                      </button>
+                    ) : (
+                      <span>STATUS</span>
+                    )}
+                  </span>
                 )}
               </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+              {isAuthenticated ? (
+                <div className="flex items-center space-x-2">
+                  <span>
+                    {userEmail || (walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected')}
+                  </span>
+                  <button
+                    onClick={onDisconnect}
+                    className="text-red-400 hover:text-red-300"
+                  >
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={onConnect}
+                  className="text-green-400 hover:text-green-300"
+                >
+                  Connect
+                </button>
+              )}
+            </div>
 
-      {/* Attestation Button - Now outside the card content */}
-      <div className="mt-4 mb-6">
-        <button
-          onClick={handleCreateAttestation}
-          disabled={isCreatingAttestation || !location || !isTouchingGrass}
-          className={`w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-bold tracking-wide transition-all duration-300 ${
-            showSuccessAnimation ? 'animate-rainbow-text' : ''
-          }`}
-        >
-          {isCreatingAttestation ? 'Creating Attestation...' : 
-           showSuccessAnimation ? '🌱 Successfully Touched Grass! 🎉' :
-           !location ? '📍 Location Required' :
-           !isTouchingGrass ? '🚫 Must Be Touching Grass' :
-           '🌿 Attest to Touching Grass'}
-        </button>
-      </div>
+            <div className="flex-1 overflow-y-auto">
+              {isHistoryOpen && selectedAttestation ? (
+                // Show selected attestation details
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <div className="text-sm opacity-60">Location</div>
+                      <div className="text-lg">
+                        {selectedAttestation.lat.toFixed(6)}, {selectedAttestation.lon.toFixed(6)}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm opacity-60">Status</div>
+                      <div className={`text-lg ${selectedAttestation.isTouchingGrass ? 'text-green-400' : 'text-red-400'}`}>
+                        {selectedAttestation.isTouchingGrass ? 'Was Touching Grass' : 'Was Not Touching Grass'}
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm opacity-60 mb-2">Time</div>
+                    <div className="text-lg">
+                      {getRelativeTimeString(selectedAttestation.timestamp)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm opacity-60 mb-2">Transaction</div>
+                    <a 
+                      href={`https://basescan.org/tx/${selectedAttestation.txHash}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 text-sm"
+                    >
+                      View on BaseScan
+                    </a>
+                  </div>
+                </div>
+              ) : (
+                // Show current status
+                <>
+                  {isLoading ? (
+                    <div className="text-center py-4">Loading...</div>
+                  ) : !location ? (
+                    <div className="text-center py-4">Waiting for location...</div>
+                  ) : isAnalyzing ? (
+                    <div className="text-center py-4">Analyzing location...</div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <div className="text-sm opacity-60">Location</div>
+                          <div className="text-lg">
+                            {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-sm opacity-60">Status</div>
+                          <div className={`text-lg ${isTouchingGrass ? 'text-green-400' : 'text-red-400'}`}>
+                            {isTouchingGrass ? 'Touching Grass' : 'Not Touching Grass'}
+                          </div>
+                        </div>
+                      </div>
 
-      {/* Swipe Indicator */}
-      <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1">
-        <div className={`w-1 h-1 rounded-full transition-colors duration-200 ${!showAttestations ? 'bg-green-400' : 'bg-green-400/20'}`} />
-        <div className={`w-1 h-1 rounded-full transition-colors duration-200 ${showAttestations ? 'bg-green-400' : 'bg-green-400/20'}`} />
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-sm opacity-60 mb-1">Confidence</div>
+                          <div className="h-2 bg-gray-700 rounded-full">
+                            <div
+                              className={`h-full rounded-full ${
+                                isTouchingGrass ? 'bg-green-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${detectionResult?.confidence || 0}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-sm opacity-60 mb-2">Analysis</div>
+                          {detectionResult ? (
+                            <ul className="space-y-2 text-sm">
+                              {isTouchingGrass
+                                ? detectionResult.explanations.positive.map((reason, i) => (
+                                    <li key={i} className="text-green-400">✓ {reason}</li>
+                                  ))
+                                : detectionResult.explanations.negative.map((reason, i) => (
+                                    <li key={i} className="text-red-400">✗ {reason}</li>
+                                  ))}
+                            </ul>
+                          ) : (
+                            <div className="text-sm text-gray-400">No analysis available</div>
+                          )}
+                        </div>
+
+                        {!isManualOverride && (
+                          <button
+                            onClick={onManualOverride}
+                            className="w-full px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm mt-2"
+                          >
+                            Override Detection
+                          </button>
+                        )}
+
+                        <button
+                          onClick={onCreateAttestation}
+                          disabled={isCreatingAttestation}
+                          className={`w-full px-4 py-2 mt-2 ${
+                            isCreatingAttestation
+                              ? 'bg-gray-700 cursor-not-allowed'
+                              : 'bg-green-600 hover:bg-green-700'
+                          } rounded-lg text-sm font-bold tracking-wide`}
+                        >
+                          {isCreatingAttestation ? 'Creating...' : 'Create Attestation'}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* History Panel (Same Width) */}
+          <div className="flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col">
+            <div className="flex items-center justify-between text-xs mb-3">
+              <div className="flex items-center space-x-4">
+                <button
+                  onClick={() => {
+                    setIsHistoryOpen(false);
+                    onSelectAttestation(null);
+                  }}
+                  className="text-white hover:text-gray-300 flex items-center space-x-2"
+                >
+                  <span>←</span>
+                  <span>Back</span>
+                </button>
+                <span className="opacity-60">HISTORY ({attestations.length})</span>
+              </div>
+              {isLoadingHistory && <span className="opacity-60">Loading...</span>}
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {attestations.length === 0 ? (
+                <div className="text-center py-4 text-sm opacity-60">
+                  No attestations yet
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {attestations.map((attestation) => (
+                    <div
+                      key={attestation.id}
+                      className={`p-4 rounded-lg cursor-pointer transition-colors ${
+                        selectedAttestation?.id === attestation.id
+                          ? 'bg-gray-700'
+                          : 'bg-gray-800 hover:bg-gray-700'
+                      }`}
+                      onClick={() => onSelectAttestation(attestation)}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className={`text-sm ${
+                          attestation.isTouchingGrass ? 'text-green-400' : 'text-red-400'
+                        }`}>
+                          {attestation.isTouchingGrass ? 'Touching Grass' : 'Not Touching Grass'}
+                        </div>
+                        <div className="text-xs opacity-60">
+                          {getRelativeTimeString(attestation.timestamp)}
+                        </div>
+                      </div>
+                      <div className="text-xs opacity-60">
+                        {attestation.lat.toFixed(6)}, {attestation.lon.toFixed(6)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

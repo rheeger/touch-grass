@@ -3,14 +3,15 @@
 import { PrivyProvider } from '@privy-io/react-auth';
 import { PropsWithChildren } from 'react';
 import { WagmiConfig, createConfig } from 'wagmi';
-import { http } from 'viem';
-import { sepolia } from 'viem/chains';
+import { base } from 'viem/chains';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { http } from 'viem';
 
+// Configure the wagmi client with Base mainnet
 const config = createConfig({
-  chains: [sepolia],
+  chains: [base],
   transports: {
-    [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_URL),
+    [base.id]: http(), // Uses Base's default public RPC endpoint
   },
 });
 
@@ -26,11 +27,14 @@ export function Providers({ children }: PropsWithChildren) {
           config={{
             loginMethods: ['email', 'wallet'],
             appearance: {
-              theme: 'light',
+              theme: 'dark',
               accentColor: '#22C55E', // green-600
               showWalletLoginFirst: false,
             },
-            defaultChain: sepolia,
+            defaultChain: base,
+            embeddedWallets: {
+              createOnLogin: 'users-without-wallets'
+            },
           }}
         >
           {children}

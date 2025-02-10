@@ -1,0 +1,47 @@
+/* Privy Modal Overrides */
+.privy-dialog {
+  font-family: monospace !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+  backdrop-filter: blur(4px) !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important;
+}
+
+.privy-dialog * {
+  font-family: monospace !important;
+}
+
+.privy-dialog input {
+  background-color: rgba(31, 41, 55, 0.5) !important;
+  border-color: rgba(75, 85, 99, 0.5) !important;
+  color: white !important;
+}
+
+.privy-dialog button {
+  text-transform: none !important;
+  border-radius: 0.5rem !important;
+}
+
+.privy-dialog button[type="submit"] {
+  background-color: #22C55E !important;
+}
+
+.privy-dialog button[type="submit"]:hover {
+  background-color: #16A34A !important;
+}
+
+.privy-dialog button[type="button"] {
+  background-color: rgba(31, 41, 55, 0.5) !important;
+}
+
+.privy-dialog button[type="button"]:hover {
+  background-color: rgba(55, 65, 81, 0.5) !important;
+}
+
+.privy-dialog hr {
+  border-color: rgba(75, 85, 99, 0.5) !important;
+}
+
+.privy-dialog p, .privy-dialog span, .privy-dialog h1, .privy-dialog h2, .privy-dialog h3 {
+  color: white !important;
+} 
