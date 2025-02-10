@@ -58,8 +58,8 @@ A Web3 dApp that lets you prove you've touched grass using the Ethereum Attestat
 
 ## Smart Contract Details
 
-- EAS Contract (Base): `0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587`
-- Schema Registry (Base): `0x720c2bA66D19A725143FBf5fDC5b4ADA2742682E`
+- EAS Contract (Base): `0x4200000000000000000000000000000000000021`
+- Schema Registry (Base): `0x4200000000000000000000000000000000000020`
 - Schema: `bool isTouchingGrass, int256 lat, int256 lon`
 
 ## Contributing

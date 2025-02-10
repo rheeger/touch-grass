@@ -5,7 +5,7 @@ import type { UnsignedTransactionRequest } from "@privy-io/react-auth";
 
 // Base Mainnet EAS Contract: https://base.easscan.org/
 const EAS_CONTRACT_ADDRESS =
-  "0xA1207F3BBa224E2c9c3c6D5aF63D0eb1582Ce587" as const;
+  "0x4200000000000000000000000000000000000021" as const;
 const EAS_GRAPHQL_API = "https://base.easscan.org/graphql" as const;
 
 // EAS ABI for the attest function
@@ -43,8 +43,7 @@ const EAS_ABI = [
 const easInterface = new Interface(EAS_ABI);
 
 // Schema definition
-const SCHEMA_UID =
-  "0xba4171c92572b1e4f241d044c32cdf083be9fd946b8766977558ca6378c824e2" as const;
+const SCHEMA_UID = process.env.NEXT_PUBLIC_EAS_SCHEMA_UID as `0x${string}`;
 const SCHEMA_RAW =
   "uint256 eventTimestamp,string srs,string locationType,string location,string[] recipeType,bytes[] recipePayload,string[] mediaType,string[] mediaData,string memo" as const;
 
@@ -191,6 +190,17 @@ async function initializeSchemaUID(): Promise<void> {
 // Call initialization on module load
 initializeSchemaUID().catch(console.error);
 
+interface WhereClause {
+  AND: Array<{
+    schemaId?: { equals: `0x${string}` };
+    revoked?: { equals: boolean };
+    OR?: Array<{
+      attester?: { equals: `0x${string}` };
+      recipient?: { equals: `0x${string}` };
+    }>;
+  }>;
+}
+
 export async function getAttestations(
   address?: `0x${string}`
 ): Promise<Attestation[]> {
@@ -208,16 +218,22 @@ export async function getAttestations(
     }
 
     // Build the where clause
-    const whereClause = {
-      schemaId: {
-        equals: SCHEMA_UID
-      },
-      revoked: false,
-      OR: [
-        { attester: { equals: address?.toLowerCase() } },
-        { recipient: { equals: address?.toLowerCase() } }
+    const whereClause: WhereClause = {
+      AND: [
+        { schemaId: { equals: SCHEMA_UID } },
+        { revoked: { equals: false } }
       ]
     };
+
+    // Only add address filtering if an address is provided
+    if (address) {
+      whereClause.AND.push({
+        OR: [
+          { attester: { equals: address } },
+          { recipient: { equals: address } }
+        ]
+      });
+    }
 
     const variables = {
       where: whereClause,
@@ -346,6 +362,14 @@ export function prepareGrassAttestation(
 
   // Encode the function call
   const encodedFunction = easInterface.encodeFunctionData("attest", [attestationRequest]);
+
+  console.log('Preparing attestation with:', {
+    contract: EAS_CONTRACT_ADDRESS,
+    schema: SCHEMA_UID,
+    recipient: walletAddress,
+    encodedData: encodedData,
+    fullCallData: encodedFunction
+  });
 
   // Return the unsigned transaction request
   return {

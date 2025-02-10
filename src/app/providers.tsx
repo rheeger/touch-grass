@@ -27,11 +27,14 @@ export function Providers({ children }: PropsWithChildren) {
           config={{
             loginMethods: ['email', 'wallet'],
             appearance: {
-              theme: 'light',
+              theme: 'dark',
               accentColor: '#22C55E', // green-600
               showWalletLoginFirst: false,
             },
             defaultChain: base,
+            embeddedWallets: {
+              createOnLogin: 'users-without-wallets'
+            },
           }}
         >
           {children}
