@@ -7,16 +7,16 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/__tests__/setup/jest.setup.ts'],
   transform: {
-    '^.+\\.(ts|tsx|js|jsx|mjs)$': ['babel-jest', { 
-      presets: [
-        ['@babel/preset-env', { 
-          targets: { node: 'current' },
-          modules: 'commonjs'
-        }],
-        '@babel/preset-typescript',
-        ['@babel/preset-react', { runtime: 'automatic', development: true }]
-      ]
-    }],
+    '^.+\\.(ts|tsx)$': [
+      'babel-jest',
+      {
+        presets: [
+          ['@babel/preset-env', { targets: { node: 'current' } }],
+          '@babel/preset-typescript',
+          ['@babel/preset-react', { runtime: 'automatic', development: true }]
+        ]
+      }
+    ]
   },
   transformIgnorePatterns: [
     '/node_modules/(?!(@privy-io|ofetch|destr|ufo|@alchemy|viem|permissionless|@biconomy|@ethereum-attestation-service|multiformats|@ethersproject|@openzeppelin|@wagmi|abitype|msw)/)',
@@ -42,5 +42,6 @@ module.exports = {
     'ts-jest': {
       tsconfig: '<rootDir>/tsconfig.json',
     },
+    NODE_ENV: 'development'
   },
 }; 

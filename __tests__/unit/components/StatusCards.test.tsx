@@ -10,7 +10,6 @@ describe('StatusCards', () => {
     isAnalyzing: false,
     isTouchingGrass: false,
     detectionResult: {
-      isTouchingGrass: false,
       confidence: 0,
       reasons: ['Not in a park'],
       explanations: {
@@ -53,7 +52,6 @@ describe('StatusCards', () => {
         {...defaultProps}
         isTouchingGrass={true}
         detectionResult={{
-          isTouchingGrass: true,
           confidence: 90,
           reasons: ['In a park'],
           explanations: {

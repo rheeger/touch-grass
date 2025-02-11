@@ -3,6 +3,9 @@ import { TextEncoder, TextDecoder } from 'util';
 import { server } from '../mocks/server';
 import { fetch, Request, Response } from 'cross-fetch';
 
+// Ensure React is in development mode
+process.env.NODE_ENV = 'development';
+
 // Add fetch to global
 global.fetch = fetch;
 global.Request = Request;
@@ -57,7 +60,7 @@ Object.defineProperty(global.navigator, 'geolocation', { value: mockGeolocation 
 
 // Mock TextEncoder/TextDecoder for viem
 global.TextEncoder = TextEncoder;
-global.TextDecoder = TextDecoder;
+(global as any).TextDecoder = TextDecoder;
 
 // Setup MSW
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));

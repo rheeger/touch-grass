@@ -37,10 +37,13 @@ jobs:
         run: npm run test
       
       - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
       
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: xvfb-run npm run test:e2e
+        env:
+          CI: true
+          NODE_ENV: test
       
       - name: Upload test results
         if: always()
@@ -49,5 +52,6 @@ jobs:
           name: test-results
           path: |
             playwright-report/
+            test-results/
             coverage/
           retention-days: 30 
