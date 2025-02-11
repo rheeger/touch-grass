@@ -1,12 +1,11 @@
-import { http, HttpResponse } from 'msw'
-import { graphql } from 'msw'
+import { graphql, rest } from 'msw'
 
 // Mock EAS GraphQL API
 export const handlers = [
   // Get attestations query
-  graphql.query('GetAttestations', () => {
-    return HttpResponse.json({
-      data: {
+  graphql.query('GetAttestations', (req, res, ctx) => {
+    return res(
+      ctx.data({
         attestations: [
           {
             id: 'test-id-1',
@@ -32,38 +31,42 @@ export const handlers = [
             ],
           },
         ],
-      }
-    })
+      })
+    )
   }),
 
   // Mock Google Places API
-  http.get('https://maps.googleapis.com/maps/api/place/*', () => {
-    return HttpResponse.json({
-      results: [
-        {
-          geometry: {
-            location: {
-              lat: 40.7128,
-              lng: -74.0060,
+  rest.get('https://maps.googleapis.com/maps/api/place/*', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        results: [
+          {
+            geometry: {
+              location: {
+                lat: 40.7128,
+                lng: -74.0060,
+              },
             },
+            types: ['park'],
+            name: 'Central Park',
           },
-          types: ['park'],
-          name: 'Central Park',
-        },
-      ],
-      status: 'OK',
-    })
+        ],
+        status: 'OK',
+      })
+    )
   }),
 
   // Mock Privy API
-  http.post('https://auth.privy.io/api/*', () => {
-    return HttpResponse.json({
-      success: true,
-      data: {
-        userId: 'test-user-id',
-        email: 'test@example.com',
-      },
-    })
+  rest.post('https://auth.privy.io/api/*', (req, res, ctx) => {
+    return res(
+      ctx.json({
+        success: true,
+        data: {
+          userId: 'test-user-id',
+          email: 'test@example.com',
+        },
+      })
+    )
   }),
 ]
 

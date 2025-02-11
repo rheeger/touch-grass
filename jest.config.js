@@ -19,7 +19,7 @@ module.exports = {
     }],
   },
   transformIgnorePatterns: [
-    '/node_modules/(?!(@privy-io|ofetch|destr|ufo|@alchemy|viem|permissionless|@biconomy|@ethereum-attestation-service|multiformats|@ethersproject|@openzeppelin|@wagmi|abitype)/)',
+    '/node_modules/(?!(@privy-io|ofetch|destr|ufo|@alchemy|viem|permissionless|@biconomy|@ethereum-attestation-service|multiformats|@ethersproject|@openzeppelin|@wagmi|abitype|msw)/)',
   ],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/', '<rootDir>/__tests__/e2e/'],
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node', 'mjs'],
