@@ -1,12 +1,12 @@
-import { graphql, rest } from 'msw';
-import { RequestHandler } from 'msw';
+import { http, HttpResponse } from 'msw'
+import { graphql } from 'msw'
 
 // Mock EAS GraphQL API
-export const handlers: RequestHandler[] = [
+export const handlers = [
   // Get attestations query
-  graphql.query('GetAttestations', (req, res, ctx) => {
-    return res(
-      ctx.data({
+  graphql.query('GetAttestations', () => {
+    return HttpResponse.json({
+      data: {
         attestations: [
           {
             id: 'test-id-1',
@@ -32,48 +32,39 @@ export const handlers: RequestHandler[] = [
             ],
           },
         ],
-      })
-    );
+      }
+    })
   }),
 
   // Mock Google Places API
-  rest.get('https://maps.googleapis.com/maps/api/place/*', (req, res, ctx) => {
-    return res(
-      ctx.json({
-        results: [
-          {
-            geometry: {
-              location: {
-                lat: 40.7128,
-                lng: -74.0060,
-              },
+  http.get('https://maps.googleapis.com/maps/api/place/*', () => {
+    return HttpResponse.json({
+      results: [
+        {
+          geometry: {
+            location: {
+              lat: 40.7128,
+              lng: -74.0060,
             },
-            types: ['park'],
-            name: 'Central Park',
           },
-        ],
-        status: 'OK',
-      })
-    );
+          types: ['park'],
+          name: 'Central Park',
+        },
+      ],
+      status: 'OK',
+    })
   }),
 
   // Mock Privy API
-  rest.post('https://auth.privy.io/api/*', (req, res, ctx) => {
-    return res(
-      ctx.json({
-        success: true,
-        data: {
-          userId: 'test-user-id',
-          email: 'test@example.com',
-        },
-      })
-    );
+  http.post('https://auth.privy.io/api/*', () => {
+    return HttpResponse.json({
+      success: true,
+      data: {
+        userId: 'test-user-id',
+        email: 'test@example.com',
+      },
+    })
   }),
-];
+]
 
-describe('MSW handlers', () => {
-  it('should have defined handlers', () => {
-    expect(handlers).toBeDefined();
-    expect(handlers.length).toBeGreaterThan(0);
-  });
-}); 
+// Remove test suite from handlers file as it's not a good practice to have tests here 
