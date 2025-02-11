@@ -19,6 +19,7 @@
 # misc
 .DS_Store
 *.pem
+/test-results
 
 # debug
 npm-debug.log*
@@ -50,3 +51,5 @@ next-env.d.ts
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+
