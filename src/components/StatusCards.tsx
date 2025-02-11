@@ -33,9 +33,10 @@ export interface StatusCardsProps {
 }
 
 // Add time formatting function
-function getRelativeTimeString(date: Date): string {
+function getRelativeTimeString(date: Date | string): string {
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const inputDate = date instanceof Date ? date : new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - inputDate.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
     return 'just now';
@@ -242,6 +243,7 @@ export function StatusCards({
                                 isTouchingGrass ? 'bg-green-500' : 'bg-red-500'
                               }`}
                               style={{ width: `${detectionResult?.confidence || 0}%` }}
+                              data-testid="confidence-bar"
                             />
                           </div>
                         </div>
