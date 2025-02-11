@@ -102,11 +102,10 @@ export default function Home() {
   // Monitor wallet initialization
   useEffect(() => {
     const initializeWallet = async () => {
-      // Only proceed if authenticated and has email
-      if (authenticated && user?.email?.address) {
+      // Only proceed if authenticated
+      if (authenticated && ready) {
         console.log('Checking wallet state:', {
           authenticated,
-          email: user.email.address,
           walletCount: wallets.length,
           ready
         });
@@ -114,19 +113,21 @@ export default function Home() {
     };
 
     initializeWallet();
-  }, [authenticated, user?.email?.address, wallets, ready]);
+  }, [authenticated, wallets, ready]);
 
-  // Add a function to determine the current active wallet
+  // Get the currently active wallet based on Privy's wallet management
   const getActiveWallet = () => {
     if (!authenticated || !ready) return null;
     
-    // If user is connected via email, only use the first wallet (smart wallet)
-    if (user?.email?.address) {
-      return wallets[0];
-    }
+    // If there are no wallets, return null
+    if (!wallets.length) return null;
+
+    // First, try to get the user's preferred wallet if they have one
+    const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
+    const connectedExternalWallet = wallets.find(w => w.walletClientType !== 'privy');
     
-    // Otherwise, only use MetaMask if it's connected
-    return wallets.find(w => w.walletClientType === 'metamask') || null;
+    // Prioritize connected external wallets over embedded wallets
+    return connectedExternalWallet || embeddedWallet || wallets[0];
   };
 
   // Load attestation history when wallet is connected
@@ -139,15 +140,14 @@ export default function Home() {
         const activeWallet = getActiveWallet();
         
         if (!activeWallet?.address) {
-          console.log('No suitable wallet found for attestations');
+          console.log('No active wallet found for attestations');
           setAttestations([]);
           return;
         }
 
         console.log('Loading attestations for wallet:', {
           type: activeWallet.walletClientType,
-          address: activeWallet.address,
-          isEmailUser: !!user?.email?.address
+          address: activeWallet.address
         });
 
         const history = await getAttestations(activeWallet.address as `0x${string}`);
@@ -162,7 +162,7 @@ export default function Home() {
     };
 
     loadAttestations();
-  }, [authenticated, wallets, ready, user?.email?.address]);
+  }, [authenticated, wallets, ready]);
 
   // Function to calculate the proper center position
   const getMapCenter = (lat: number, lng: number) => {
@@ -305,106 +305,67 @@ export default function Home() {
       const activeWallet = getActiveWallet();
 
       if (!activeWallet) {
-        throw new Error('No suitable wallet found. Please connect with MetaMask or email.');
+        throw new Error('No active wallet found. Please connect a wallet to continue.');
       }
 
       // Get current attestation count
       const currentCount = attestations.length;
 
-      // Handle MetaMask flow
-      if (activeWallet.walletClientType === 'metamask') {
-        console.log('Using MetaMask wallet:', {
-          address: activeWallet.address,
-          chainId: activeWallet.chainId
-        });
+      console.log('Using wallet:', {
+        type: activeWallet.walletClientType,
+        address: activeWallet.address,
+        chainId: activeWallet.chainId
+      });
 
-        // Prepare the transaction
-        const tx = prepareGrassAttestation(
-          activeWallet.address,
-          location.lat,
-          location.lng,
-          isTouchingGrass
+      // Prepare the transaction
+      const tx = prepareGrassAttestation(
+        activeWallet.address,
+        location.lat,
+        location.lng,
+        isTouchingGrass
+      );
+
+      let transactionHash;
+
+      // Handle transaction based on wallet type
+      if (activeWallet.walletClientType === 'privy') {
+        // For Privy embedded wallet, use sponsored transactions
+        const { account } = await createSmartAccountForEmail(activeWallet);
+        transactionHash = await sendSponsoredTransaction(
+          account,
+          tx.to as `0x${string}`,
+          tx.data as `0x${string}`
         );
-
-        // Send the transaction directly through MetaMask
+      } else {
+        // For external wallets (MetaMask, Rainbow, etc.), use their provider
         const provider = await activeWallet.getEthereumProvider();
-        const result = await provider.request({
+        transactionHash = await provider.request({
           method: 'eth_sendTransaction',
           params: [{
             from: activeWallet.address,
             to: tx.to,
             data: tx.data,
-            value: tx.value,
+            value: tx.value || '0x0',
           }],
         });
-
-        console.log('Transaction:', result);
-        
-        try {
-          const history = await fetchAttestationHistoryWithRetry(
-            activeWallet.address as `0x${string}`,
-            currentCount + 1
-          );
-          setAttestations(history);
-          alert('Successfully created attestation!');
-        } catch (error) {
-          console.error('Error getting updated history:', error);
-          alert('Attestation created, but you may need to refresh to see it.');
-        }
-        return;
       }
 
-      // Handle email flow
-      if (user?.email?.address) {
-        console.log('Using email wallet:', {
-          type: activeWallet.walletClientType,
-          address: activeWallet.address,
-          chainId: activeWallet.chainId
-        });
-        
-        // Create a smart account using the available wallet
-        const { account, address } = await createSmartAccountForEmail(activeWallet);
-        
-        // Prepare the attestation transaction
-        const tx = prepareGrassAttestation(
-          address,
-          location.lat,
-          location.lng,
-          isTouchingGrass
+      console.log('Transaction:', transactionHash);
+      
+      try {
+        const history = await fetchAttestationHistoryWithRetry(
+          activeWallet.address as `0x${string}`,
+          currentCount + 1
         );
-
-        // Send the sponsored transaction
-        const receipt = await sendSponsoredTransaction(
-          account,
-          tx.to as `0x${string}`,
-          tx.data as `0x${string}`
-        );
-
-        console.log('Transaction receipt:', receipt);
-        
-        try {
-          const history = await fetchAttestationHistoryWithRetry(
-            address,
-            currentCount + 1
-          );
-          setAttestations(history);
-          alert('Successfully created attestation!');
-        } catch (error) {
-          console.error('Error getting updated history:', error);
-          alert('Attestation created, but you may need to refresh to see it.');
-        }
-        return;
+        setAttestations(history);
+        alert('Successfully created attestation!');
+      } catch (error) {
+        console.error('Error fetching updated attestations:', error);
+        // Don't show error to user since transaction was successful
       }
-
-      throw new Error('No suitable wallet found. Please connect with MetaMask or email.');
-
     } catch (error) {
       console.error('Error creating attestation:', error);
-      if (error instanceof Error) {
-        alert(`Failed to create attestation: ${error.message}`);
-      } else {
-        alert('Failed to create attestation. Please check the console for details.');
-      }
+      alert('Error creating attestation. Please try again.');
     } finally {
       setIsCreatingAttestation(false);
     }
