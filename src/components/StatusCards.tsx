@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type Attestation } from '@/utils/eas';
+import { type Attestation } from '@/utils/attestations';
 import confetti from 'canvas-confetti';
 
 export interface StatusCardsProps {

@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { GoogleMap, LoadScript, Marker, OverlayView } from '@react-google-maps/api';
 import { mapContainerStyle, MAP_ZOOM, getMapCenter, mapOptions, libraries, CIRCLE_SVG, MARKER_STYLES } from '@/config/mapConfig';
-import { type Attestation } from '@/utils/eas';
+import { type Attestation } from '@/utils/attestations';
 
 interface MapComponentProps {
   location: { lat: number; lng: number } | null;
