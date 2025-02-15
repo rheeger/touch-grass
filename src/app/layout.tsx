@@ -1,10 +1,8 @@
 import './globals.css';
+import '@/styles/fonts.css';
+import '@/styles/privy-overrides.css';
 import type { Metadata } from 'next';
-import { Inter } from 'next/font/google';
 import { Providers } from "./providers";
-import '@/styles/privy-overrides.css'
-
-const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Touch Grass',
@@ -39,8 +37,10 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className={inter.className}>
-        <Providers>{children}</Providers>
+      <body>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

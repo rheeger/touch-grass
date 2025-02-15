@@ -330,9 +330,9 @@ export default function Home() {
       // Handle transaction based on wallet type
       if (activeWallet.walletClientType === 'privy') {
         // For Privy embedded wallet, use sponsored transactions
-        const { account } = await createSmartAccountForEmail(activeWallet);
+        const smartAccount = await createSmartAccountForEmail(activeWallet);
         transactionHash = await sendSponsoredTransaction(
-          account,
+          smartAccount,
           tx.to as `0x${string}`,
           tx.data as `0x${string}`
         );
