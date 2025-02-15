@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { GoogleMap, LoadScript, Marker, OverlayView } from '@react-google-maps/api';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { prepareGrassAttestation, getAttestations } from '@/utils/eas';
@@ -116,19 +116,13 @@ export default function Home() {
   }, [authenticated, wallets, ready]);
 
   // Get the currently active wallet based on Privy's wallet management
-  const getActiveWallet = () => {
+  const getActiveWallet = useCallback(() => {
     if (!authenticated || !ready) return null;
-    
-    // If there are no wallets, return null
     if (!wallets.length) return null;
-
-    // First, try to get the user's preferred wallet if they have one
     const embeddedWallet = wallets.find(w => w.walletClientType === 'privy');
     const connectedExternalWallet = wallets.find(w => w.walletClientType !== 'privy');
-    
-    // Prioritize connected external wallets over embedded wallets
     return connectedExternalWallet || embeddedWallet || wallets[0];
-  };
+  }, [authenticated, ready, wallets]);
 
   // Load attestation history when wallet is connected
   useEffect(() => {
@@ -162,7 +156,7 @@ export default function Home() {
     };
 
     loadAttestations();
-  }, [authenticated, wallets, ready]);
+  }, [authenticated, wallets, ready, getActiveWallet]);
 
   // Function to calculate the proper center position
   const getMapCenter = (lat: number, lng: number) => {
@@ -183,7 +177,7 @@ export default function Home() {
     };
 
   // Function to check if user is touching grass
-  const checkTouchingGrass = async (lat: number, lng: number) => {
+  const checkTouchingGrass = useCallback(async (lat: number, lng: number) => {
     if (!mapRef.current) {
       console.error('Map not initialized');
       return;
@@ -227,7 +221,7 @@ export default function Home() {
     } finally {
       setIsAnalyzing(false);
     }
-  };
+  }, [isManualOverride]);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -240,7 +234,6 @@ export default function Home() {
           setLocation(newLocation);
           setInitialLocation(newLocation);
           setIsLoading(false);
-          // Only run checkTouchingGrass if map is initialized
           if (mapRef.current) {
             checkTouchingGrass(newLocation.lat, newLocation.lng);
           }
@@ -251,7 +244,7 @@ export default function Home() {
         }
       );
     }
-  }, [mapRef.current]);
+  }, [checkTouchingGrass]);
 
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng || !mapRef.current) return;
@@ -330,12 +323,8 @@ export default function Home() {
       // Handle transaction based on wallet type
       if (activeWallet.walletClientType === 'privy') {
         // For Privy embedded wallet, use sponsored transactions
-        const smartAccount = await createSmartAccountForEmail(activeWallet);
-        transactionHash = await sendSponsoredTransaction(
-          smartAccount,
-          tx.to as `0x${string}`,
-          tx.data as `0x${string}`
-        );
+        await createSmartAccountForEmail();
+        transactionHash = await sendSponsoredTransaction();
       } else {
         // For external wallets (MetaMask, Rainbow, etc.), use their provider
         const provider = await activeWallet.getEthereumProvider();
