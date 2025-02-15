@@ -9,7 +9,28 @@ declare module '@/app/page' {
   export default HomePage;
 }
 
-declare module '@/utils/paymaster' {
-  export const createSmartAccountForEmail: () => Promise<{ address: string, chainId: number }>;
-  export const sendSponsoredTransaction: () => Promise<string>;
-} 
+declare module '@/utils/grassDetection' {
+  export interface GrassDetectionResult {
+    isTouchingGrass: boolean;
+    confidence: number;
+    reasons: string[];
+    explanations: {
+      positive: string[];
+      negative: string[];
+    };
+    debugInfo?: {
+      isInPark?: boolean;
+      isInBuilding?: boolean;
+      placeTypes?: string[];
+    };
+  }
+  
+  export function analyzeGrass(
+    lat: number,
+    lng: number,
+    map: google.maps.Map,
+    isManualOverride: boolean
+  ): Promise<GrassDetectionResult>;
+}
+
+declare module '@/utils/attestationHelpers'; 

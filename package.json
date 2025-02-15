@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@biconomy/account": "^4.1.1",
-    "@biconomy/bundler": "^4.1.1",
     "@biconomy/modules": "^4.1.1",
     "@biconomy/paymaster": "^4.1.1",
     "@ethereum-attestation-service/eas-sdk": "^2.7.0",

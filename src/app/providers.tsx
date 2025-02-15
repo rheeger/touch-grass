@@ -25,19 +25,17 @@ export function Providers({ children }: PropsWithChildren) {
         <PrivyProvider
           appId={process.env.NEXT_PUBLIC_PRIVY_APP_ID || ''}
           config={{
-            loginMethods: ['email', 'wallet'],
+            loginMethods: ['wallet'],
             appearance: {
               theme: 'dark',
               accentColor: '#22C55E', // green-600
               showWalletLoginFirst: false,
             },
             defaultChain: base,
-            embeddedWallets: {
-              createOnLogin: 'users-without-wallets'
-            },
+            supportedChains: [base]
           }}
         >
-          {children}
+            {children}
         </PrivyProvider>
       </QueryClientProvider>
     </WagmiConfig>
