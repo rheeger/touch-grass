@@ -1,6 +1,6 @@
 import { type Attestation } from '@/utils/attestations';
 import { getRelativeTimeString, calculateDistance, formatDistance } from '@/utils/places';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo, useCallback } from 'react';
 import '@/styles/history.css';
 
 interface HistoryCardProps {
@@ -30,8 +30,14 @@ export function HistoryCard({
 }: HistoryCardProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to selected item when it changes
-  useEffect(() => {
+  // Memoize filtered attestations
+  const filteredAttestations = useMemo(() => 
+    showOnlyGrass ? attestations.filter(a => a.isTouchingGrass) : attestations,
+    [attestations, showOnlyGrass]
+  );
+
+  // Memoize the scroll handler
+  const handleScroll = useCallback(() => {
     if (selectedAttestation && selectedItemRef.current) {
       try {
         selectedItemRef.current.scrollIntoView({
@@ -46,10 +52,20 @@ export function HistoryCard({
     }
   }, [selectedAttestation]);
 
-  // Filter attestations based on toggle
-  const filteredAttestations = showOnlyGrass
-    ? attestations.filter(a => a.isTouchingGrass)
-    : attestations;
+  useEffect(() => {
+    handleScroll();
+  }, [handleScroll]);
+
+  // Memoize distance calculations
+  const calculateDistances = useCallback((attestation: Attestation) => {
+    if (!currentLocation) return null;
+    return calculateDistance(
+      currentLocation.lat,
+      currentLocation.lng,
+      attestation.lat,
+      attestation.lon
+    );
+  }, [currentLocation]);
 
   return (
     <div className="history-card">
@@ -103,14 +119,7 @@ export function HistoryCard({
         ) : (
           <div className="history-list">
             {filteredAttestations.map((attestation) => {
-              const distance = currentLocation
-                ? calculateDistance(
-                    currentLocation.lat,
-                    currentLocation.lng,
-                    attestation.lat,
-                    attestation.lon
-                  )
-                : null;
+              const distance = calculateDistances(attestation);
 
               return (
                 <div
