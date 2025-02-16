@@ -1,0 +1,99 @@
+/* HistoryCard Styles */
+.history-card {
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+}
+
+.history-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.history-back-button {
+  @apply flex items-center space-x-2 text-xs text-white/60 hover:text-white transition-colors;
+}
+
+.history-title {
+  @apply text-xs font-medium;
+}
+
+.history-loading {
+  @apply text-xs text-white/60 animate-pulse;
+}
+
+.history-content {
+  @apply flex-1 overflow-hidden;
+}
+
+.history-empty {
+  @apply flex items-center justify-center h-full text-white/60;
+}
+
+.history-list {
+  @apply space-y-2 overflow-y-auto h-full;
+  scrollbar-gutter: stable;
+}
+
+/* History-specific styles */
+.history-item {
+  @apply p-3 rounded-lg cursor-pointer transition-colors;
+}
+
+.history-item-default {
+  @apply bg-white/5 hover:bg-white/10;
+}
+
+.history-item-selected {
+  @apply bg-white/20;
+}
+
+.history-item-header {
+  @apply flex items-start justify-between mb-2;
+}
+
+.history-item-status {
+  @apply text-xs font-medium px-2 py-0.5 rounded;
+}
+
+.history-item-status-grass {
+  @apply bg-green-500/20 text-green-300;
+}
+
+.history-item-status-no-grass {
+  @apply bg-red-500/20 text-red-300;
+}
+
+.history-item-time {
+  @apply text-xs text-white/60;
+}
+
+.history-item-location {
+  @apply space-y-1;
+}
+
+.history-item-coordinates {
+  @apply text-xs text-white/80;
+}
+
+.history-item-right {
+  @apply flex flex-col items-end space-y-1;
+}
+
+.history-item-distance {
+  @apply text-xs text-white/60;
+}
+
+/* View toggle styles */
+.view-toggle {
+  @apply flex space-x-2;
+}
+
+.view-toggle-button {
+  @apply text-xs px-2 py-1 rounded transition-colors;
+}
+
+.view-toggle-button-active {
+  @apply bg-white/20 text-white;
+}
+
+.view-toggle-button-inactive {
+  @apply bg-white/5 text-white/60 hover:bg-white/10;
+} 

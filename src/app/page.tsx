@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import type { GrassDetectionResult } from '@/utils/grassDetection';
 import { analyzeGrass } from '@/utils/grassDetection';
@@ -8,38 +8,11 @@ import { createAttestation, getAttestations, Attestation } from '@/utils/attesta
 import { StatusCards } from '@/components/StatusCards';
 import { getActiveWallet, getWalletAddress, isConnectedWallet, ActiveWallet } from '@/utils/walletManager';
 import MapComponent from '@/components/MapComponent';
-import { getMapCenter, MAP_ZOOM } from '@/config/mapConfig';
-
-// Add styles for the walking person marker
-const MARKER_STYLES = `
-  @keyframes pulse {
-    0% { transform: scale(1); opacity: 1; }
-    50% { transform: scale(1.5); opacity: 0.9; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  .pulsating-dot {
-    position: absolute;
-    width: 16px;
-    height: 16px;
-    background-color: #3B82F6;
-    border: 2px solid white;
-    border-radius: 50%;
-    animation: pulse 2s infinite;
-    transform: translate(-50%, -50%);
-  }
-  .walking-person {
-    filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.5));
-  }
-`;
-
-// Add style tag to head
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = MARKER_STYLES;
-  document.head.appendChild(style);
-}
+import { calculateDistance } from '@/utils/places';
+import confetti from 'canvas-confetti';
 
 export default function Home() {
+  const mapRef = useRef<google.maps.Map | null>(null);
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [initialLocation, setInitialLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -48,20 +21,23 @@ export default function Home() {
   const [detectionResult, setDetectionResult] = useState<GrassDetectionResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isManualOverride, setIsManualOverride] = useState(false);
-  const mapRef = useRef<google.maps.Map | null>(null);
   const { login, authenticated, ready, logout } = usePrivy();
   const { wallets } = useWallets();
   const [selectedAttestation, setSelectedAttestation] = useState<Attestation | null>(null);
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [attestations, setAttestations] = useState<Attestation[]>([]);
+  const [allAttestations, setAllAttestations] = useState<Attestation[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [manualLocation, setManualLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [activeWallet, setActiveWallet] = useState<ActiveWallet | null>(null);
   const [walletAddress, setWalletAddress] = useState<string | undefined>(undefined);
+  const [currentView, setCurrentView] = useState<'status' | 'menu' | 'history' | 'feed' | 'leaderboard'>('status');
+  const [isLocationTooFar, setIsLocationTooFar] = useState(false);
+  const [showOnlyGrass, setShowOnlyGrass] = useState(false);
 
   // Monitor wallet initialization
   useEffect(() => {
     const initializeWallet = async () => {
-      // Only proceed if authenticated
       if (authenticated && ready) {
         console.log('Checking wallet state:', {
           authenticated,
@@ -74,7 +50,6 @@ export default function Home() {
     initializeWallet();
   }, [authenticated, wallets, ready]);
 
-  // New effect: Log detailed wallet information
   useEffect(() => {
     console.log('Wallet info:', wallets);
   }, [wallets]);
@@ -146,44 +121,21 @@ export default function Home() {
     loadAttestations();
   }, [authenticated, wallets, ready, activeWallet]);
 
-  const handleMapLoad = (map: google.maps.Map) => {
-    mapRef.current = map;
-
-    // If we already have a location, center the map properly
-    if (location) {
-      map.setCenter(getMapCenter(location.lat, location.lng));
-      map.setZoom(MAP_ZOOM);
-    }
+  // Add new effect to load all attestations
+  useEffect(() => {
+    const loadAllAttestations = async () => {
+      try {
+        const history = await getAttestations();
+        console.log('Loaded all attestations:', history);
+        setAllAttestations(history);
+      } catch (error) {
+        console.error('Error loading all attestations:', error);
+        setAllAttestations([]);
+      }
     };
 
-  // Function to check if user is touching grass
-  const checkTouchingGrass = useCallback(async (lat: number, lng: number) => {
-    if (!mapRef.current) {
-      console.error('Map not initialized');
-      return;
-    }
-    
-    setIsAnalyzing(true);
-    try {
-      const result = await analyzeGrass(lat, lng, mapRef.current, isManualOverride);
-      setDetectionResult(result);
-      setIsTouchingGrass(result.isTouchingGrass);
-    } catch (error) {
-      console.error('Error analyzing location:', error);
-      setDetectionResult({
-        isTouchingGrass: false,
-        confidence: 0,
-        reasons: ['Error analyzing location'],
-        explanations: {
-          positive: [],
-          negative: ["We encountered an error analyzing your location."]
-        }
-      });
-      setIsTouchingGrass(false);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [isManualOverride]);
+    loadAllAttestations();
+  }, []);
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -196,9 +148,6 @@ export default function Home() {
           setLocation(newLocation);
           setInitialLocation(newLocation);
           setIsLoading(false);
-          if (mapRef.current) {
-            checkTouchingGrass(newLocation.lat, newLocation.lng);
-          }
         },
         (error) => {
           console.error('Error getting location:', error);
@@ -206,35 +155,34 @@ export default function Home() {
         }
       );
     }
-  }, [checkTouchingGrass]);
+  }, []);
 
-  const handleMapClick = async (e: google.maps.MapMouseEvent) => {
-    if (!e.latLng || !mapRef.current) return;
+  // Add effect to check location distance in production
+  useEffect(() => {
+    if (process.env.NEXT_PUBLIC_APP_ENV === 'production' && location && initialLocation) {
+      const distance = calculateDistance(
+        location.lat,
+        location.lng,
+        initialLocation.lat,
+        initialLocation.lng
+      ) * 1000; // Convert km to meters
 
-    // In production, only allow using current location
-    if (process.env.NEXT_PUBLIC_APP_ENV === 'production') {
-      alert('In production mode, you can only use your current location.');
-      return;
+      setIsLocationTooFar(distance > 30);
+    } else {
+      setIsLocationTooFar(false);
     }
-
-    const newLocation = {
-      lat: e.latLng.lat(),
-      lng: e.latLng.lng()
-    };
-
-    setManualLocation(newLocation);
-    setLocation(newLocation);
-    setIsManualOverride(false);
-    await checkTouchingGrass(newLocation.lat, newLocation.lng);
-  };
+  }, [location, initialLocation]);
 
   const handleCreateAttestation = async () => {
     if (!location) {
-      alert('Please ensure you have a valid location.');
       return;
     }
     if (!authenticated) {
       login();
+      return;
+    }
+
+    if (isLocationTooFar) {
       return;
     }
 
@@ -254,23 +202,19 @@ export default function Home() {
 
       console.log('Transaction:', transactionHash);
       setAttestations(newAttestations);
-      alert('Successfully created attestation!');
+      
+      // Trigger confetti animation on success
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
     } catch (error) {
       console.error('Error creating attestation:', error);
-      alert('Error creating attestation. Please try again.');
     } finally {
       setIsCreatingAttestation(false);
     }
   };
-
-  // Add effect to handle selected attestation
-  useEffect(() => {
-    if (selectedAttestation && mapRef.current) {
-      const center = getMapCenter(selectedAttestation.lat, selectedAttestation.lon);
-      mapRef.current.panTo(center);
-      mapRef.current.setZoom(MAP_ZOOM);
-    }
-  }, [selectedAttestation]);
 
   // Updated handleDisconnect function to remove hard refresh on logout
   const handleDisconnect = async () => {
@@ -287,10 +231,6 @@ export default function Home() {
     // Reset to initial location if it exists
     if (initialLocation) {
       setLocation(initialLocation);
-      if (mapRef.current) {
-        mapRef.current.panTo(getMapCenter(initialLocation.lat, initialLocation.lng));
-        mapRef.current.setZoom(MAP_ZOOM);
-      }
     }
 
     // Clear all cookies
@@ -310,6 +250,21 @@ export default function Home() {
     }
   };
 
+  // Function to handle user selection from leaderboard
+  const handleUserSelect = (address: string | null) => {
+    setSelectedUser(address);
+    if (address) {
+      const userAttestations = allAttestations.filter(a => a.attester.toLowerCase() === address.toLowerCase());
+      if (userAttestations.length > 0) {
+        // Sort by timestamp to get the most recent
+        const mostRecent = userAttestations.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())[0];
+        setSelectedAttestation(mostRecent);
+      }
+    } else {
+      setSelectedAttestation(null);
+    }
+  };
+
   if (!ready) {
     return <div>Loading...</div>;
   }
@@ -323,11 +278,34 @@ export default function Home() {
           initialLocation={initialLocation}
           manualLocation={manualLocation}
           selectedAttestation={selectedAttestation}
-          attestations={attestations}
+          attestations={authenticated ? 
+            (selectedUser ? allAttestations.filter(a => a.attester.toLowerCase() === selectedUser.toLowerCase()) : attestations) 
+            : (selectedUser ? allAttestations.filter(a => a.attester.toLowerCase() === selectedUser.toLowerCase()) : allAttestations)}
           isAnalyzing={isAnalyzing}
           isTouchingGrass={isTouchingGrass}
-          onMapClick={handleMapClick}
-          onMapLoad={handleMapLoad}
+          isViewingFeed={currentView === 'feed'}
+          feedAttestations={selectedUser ? 
+            allAttestations.filter(a => a.attester.toLowerCase() === selectedUser.toLowerCase()) 
+            : allAttestations}
+          onSelectAttestation={setSelectedAttestation}
+          currentUserAddress={authenticated ? walletAddress : undefined}
+          onLocationChange={(newLocation) => {
+            setLocation(newLocation);
+            setManualLocation(newLocation);
+            setIsManualOverride(false);
+            setDetectionResult(null);
+          }}
+          onAnalysisStart={() => setIsAnalyzing(true)}
+          onAnalysisComplete={(result) => {
+            setIsAnalyzing(false);
+            setIsTouchingGrass(result.isTouchingGrass);
+            setDetectionResult(result as GrassDetectionResult);
+          }}
+          onMapLoad={(map) => {
+            mapRef.current = map;
+          }}
+          showOnlyGrass={showOnlyGrass}
+          onViewChange={setCurrentView}
         />
       </div>
 
@@ -342,9 +320,24 @@ export default function Home() {
             detectionResult={detectionResult}
             isManualOverride={isManualOverride}
             onManualOverride={() => {
-              setIsManualOverride(true);
+              setIsManualOverride(!isManualOverride);
               if (location) {
-                checkTouchingGrass(location.lat, location.lng);
+                setIsAnalyzing(true);
+                setDetectionResult(null);
+                // Analyze with the new override state
+                if (mapRef.current) {
+                  analyzeGrass(location.lat, location.lng, mapRef.current, !isManualOverride)
+                    .then((result: GrassDetectionResult) => {
+                      setIsAnalyzing(false);
+                      setIsTouchingGrass(result.isTouchingGrass);
+                      setDetectionResult(result);
+                    })
+                    .catch(() => {
+                      setIsAnalyzing(false);
+                      setIsTouchingGrass(false);
+                      setDetectionResult(null);
+                    });
+                }
               }
             }}
             walletAddress={walletAddress}
@@ -356,7 +349,28 @@ export default function Home() {
             selectedAttestation={selectedAttestation}
             onSelectAttestation={setSelectedAttestation}
             attestations={attestations}
+            allAttestations={allAttestations}
             isLoadingHistory={isLoadingHistory}
+            currentView={currentView}
+            onViewChange={setCurrentView}
+            isLocationTooFar={isLocationTooFar}
+            initialLocation={initialLocation}
+            onMapClick={(event) => {
+              if (event.latLng) {
+                const newLocation = {
+                  lat: event.latLng.lat(),
+                  lng: event.latLng.lng()
+                };
+                setLocation(newLocation);
+                setManualLocation(newLocation);
+                setIsManualOverride(false);
+                setDetectionResult(null);
+              }
+            }}
+            showOnlyGrass={showOnlyGrass}
+            onShowOnlyGrassChange={setShowOnlyGrass}
+            selectedUser={selectedUser}
+            onUserSelect={handleUserSelect}
           />
         </div>
       </div>

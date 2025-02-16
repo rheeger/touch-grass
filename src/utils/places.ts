@@ -1,3 +1,73 @@
+// Time utilities
+export function getRelativeTimeString(date: Date | string): string {
+  const now = new Date();
+  const inputDate = date instanceof Date ? date : new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - inputDate.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return 'just now';
+  }
+
+  const diffInMinutes = Math.floor(diffInSeconds / 60);
+  if (diffInMinutes < 60) {
+    return `${diffInMinutes}m ago`;
+  }
+
+  const diffInHours = Math.floor(diffInMinutes / 60);
+  if (diffInHours < 24) {
+    return `${diffInHours}h ago`;
+  }
+
+  const diffInDays = Math.floor(diffInHours / 24);
+  if (diffInDays < 7) {
+    return `${diffInDays}d ago`;
+  }
+
+  const diffInWeeks = Math.floor(diffInDays / 7);
+  if (diffInWeeks < 4) {
+    return `${diffInWeeks}w ago`;
+  }
+
+  const diffInMonths = Math.floor(diffInDays / 30);
+  if (diffInMonths < 12) {
+    return `${diffInMonths}mo ago`;
+  }
+
+  const diffInYears = Math.floor(diffInDays / 365);
+  return `${diffInYears}y ago`;
+}
+
+// Distance calculation utilities
+function deg2rad(deg: number): number {
+  return deg * (Math.PI / 180);
+}
+
+export function calculateDistance(
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+): number {
+  const R = 6371; // Radius of the earth in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLon = deg2rad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) * Math.cos(deg2rad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const d = R * c; // Distance in km
+  return d;
+}
+
+export function formatDistance(distance: number): string {
+  if (distance < 1) {
+    return `${Math.round(distance * 1000)}m`;
+  }
+  return `${Math.round(distance)}km`;
+}
+
+// Places analysis types and utilities
 interface PlacesAnalysisResult {
   isInPark: boolean;
   isInBuilding: boolean;
@@ -38,7 +108,7 @@ export async function analyzePlacesData(
     result.manualOverride = true;
     result.isInPark = true;
     result.confidence = 100;
-    result.explanations.positive.push("You've confirmed you're touching grass at this location.");
+    result.explanations.positive.push("You've overridden grass detection.");
     return result;
   }
 

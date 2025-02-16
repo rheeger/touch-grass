@@ -1,0 +1,57 @@
+/* MenuCard Styles */
+.menu-card {
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+}
+
+.menu-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.menu-back-button {
+  @apply flex items-center space-x-2 text-xs text-white/60 hover:text-white transition-colors;
+}
+
+.menu-title {
+  @apply text-xs font-light;
+}
+
+/* Menu-specific styles */
+.menu-wallet {
+  @apply flex items-center space-x-2;
+}
+
+.menu-wallet-address {
+  @apply text-xs;
+}
+
+.menu-wallet-disconnect {
+  @apply text-red-400 hover:text-red-300 text-xs;
+}
+
+.menu-wallet-connect {
+  @apply text-green-400 hover:text-green-300 text-xs;
+}
+
+.menu-content {
+  @apply flex-1 flex flex-col space-y-3 pt-2;
+}
+
+.menu-button {
+  @apply w-full p-3 bg-white/5 hover:bg-white/10 rounded-lg text-left transition-colors flex items-center space-x-3;
+}
+
+.menu-button-content {
+  @apply flex-1;
+}
+
+.menu-button-emoji {
+  @apply text-2xl;
+}
+
+.menu-button-title {
+  @apply text-base font-medium;
+}
+
+.menu-button-description {
+  @apply text-xs text-white/60 mt-0.5;
+} 

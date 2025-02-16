@@ -1,0 +1,114 @@
+  .leaderboard-card {
+    @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+  }
+
+  .leaderboard-header {
+    @apply flex items-center justify-between mb-4;
+  }
+
+  .leaderboard-back-button {
+    @apply flex items-center space-x-2 text-xs text-white/60 hover:text-white transition-colors;
+  }
+
+  .leaderboard-title {
+    @apply text-xs font-medium;
+  }
+
+  .leaderboard-content {
+    @apply flex-1 overflow-hidden;
+  }
+
+  .leaderboard-list {
+    @apply space-y-2 overflow-y-auto h-full;
+    scrollbar-gutter: stable;
+  }
+
+  /* Leaderboard-specific styles */
+  .leaderboard-entry {
+    @apply p-4 bg-white/5 rounded-lg;
+  }
+
+  .leaderboard-entry-placeholder {
+    @apply opacity-40;
+  }
+
+  .leaderboard-entry-header {
+    @apply flex items-center justify-between mb-2;
+  }
+
+  .leaderboard-rank {
+    @apply flex items-center space-x-3;
+  }
+
+  .leaderboard-rank-emoji {
+    @apply text-2xl font-bold flex items-center;
+  }
+
+  .leaderboard-rank-number {
+    @apply text-lg font-bold flex items-center;
+  }
+
+  .leaderboard-address {
+    @apply text-xs;
+  }
+
+  .leaderboard-address-placeholder {
+    @apply italic text-white/60;
+  }
+
+  .leaderboard-stats {
+    @apply text-right;
+  }
+
+  .leaderboard-count {
+    @apply text-lg font-bold;
+  }
+
+  .leaderboard-label {
+    @apply text-xs text-white/60;
+  }
+
+  .leaderboard-progress {
+    @apply relative;
+  }
+
+  .leaderboard-goal-line {
+    @apply absolute top-0 bottom-0 w-px bg-white/20;
+  }
+
+  .leaderboard-progress-bar {
+    @apply h-2 bg-white/5 rounded-full overflow-hidden relative;
+  }
+
+  .leaderboard-progress-grass {
+    @apply h-full bg-green-500 rounded-full transition-all duration-300;
+  }
+
+  .leaderboard-progress-non-grass {
+    @apply absolute h-full bg-red-500 rounded-full transition-all duration-300;
+  }
+
+  .leaderboard-progress-info {
+    @apply flex justify-end text-xs mt-1 text-white/60;
+  }
+
+  .leaderboard-goal-text {
+    @apply text-white/40 ml-2;
+  }
+
+  /* Toggle styles */
+  .leaderboard-toggle {
+    @apply flex space-x-2;
+  }
+
+  .leaderboard-toggle-button {
+    @apply text-xs px-2 py-1 rounded transition-colors;
+  }
+
+  .leaderboard-toggle-button-active {
+    @apply bg-white/20 text-white;
+  }
+
+  .leaderboard-toggle-button-inactive {
+    @apply bg-white/5 text-white/60 hover:bg-white/10;
+  }
