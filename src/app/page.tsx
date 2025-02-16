@@ -49,7 +49,7 @@ export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isManualOverride, setIsManualOverride] = useState(false);
   const mapRef = useRef<google.maps.Map | null>(null);
-  const { login, authenticated, ready, logout, user } = usePrivy();
+  const { login, authenticated, ready, logout } = usePrivy();
   const { wallets } = useWallets();
   const [selectedAttestation, setSelectedAttestation] = useState<Attestation | null>(null);
   const [attestations, setAttestations] = useState<Attestation[]>([]);
@@ -83,7 +83,7 @@ export default function Home() {
   useEffect(() => {
     async function fetchWallet() {
       try {
-        const wallet = await getActiveWallet(user && user.email && user.email.address ? { email: user.email.address } : null, wallets);
+        const wallet = await getActiveWallet(wallets);
         setActiveWallet(wallet);
       } catch (error) {
         console.error('Error retrieving active wallet:', error);
@@ -91,7 +91,7 @@ export default function Home() {
       }
     }
     fetchWallet();
-  }, [user, wallets]);
+  }, [wallets]);
 
   // Add useEffect to update wallet address from activeWallet
   useEffect(() => {
@@ -348,7 +348,6 @@ export default function Home() {
               }
             }}
             walletAddress={walletAddress}
-            userEmail={user?.email?.address}
             onDisconnect={handleDisconnect}
             onConnect={login}
             isAuthenticated={authenticated && ready}

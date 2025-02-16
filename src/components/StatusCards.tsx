@@ -20,7 +20,6 @@ export interface StatusCardsProps {
   isManualOverride: boolean;
   onManualOverride: () => void;
   walletAddress?: string;
-  userEmail?: string;
   onDisconnect: () => void;
   onConnect: () => void;
   isAuthenticated: boolean;
@@ -80,7 +79,6 @@ export function StatusCards({
   isManualOverride,
   onManualOverride,
   walletAddress,
-  userEmail,
   onDisconnect,
   onConnect,
   isAuthenticated,
@@ -153,7 +151,7 @@ export function StatusCards({
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2">
                   <span>
-                    {userEmail || (walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected')}
+                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
                   </span>
                   <button
                     onClick={onDisconnect}

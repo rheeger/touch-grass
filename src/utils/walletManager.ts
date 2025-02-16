@@ -5,13 +5,17 @@ export type ActiveWallet = ConnectedWallet;
 /**
  * Retrieves the active wallet from the connected wallets.
  * 
- * @param user - The user object (unused)
  * @param wallets - Array of connected wallets
- * @returns A Promise resolving to the first connected wallet or null.
+ * @returns A Promise resolving to the first non-embedded wallet or null.
  */
-export async function getActiveWallet(user: { email?: string } | null, wallets: ConnectedWallet[]): Promise<ActiveWallet | null> {
-  // Simply return the first connected wallet if available.
-  return wallets.length > 0 ? wallets[0] : null;
+export async function getActiveWallet(wallets: ConnectedWallet[]): Promise<ActiveWallet | null> {
+  // Filter out Privy embedded wallets and return the first available wallet
+  const availableWallets = wallets.filter(wallet => 
+    wallet.connectorType !== 'embedded' && 
+    wallet.walletClientType !== 'privy'
+  );
+  
+  return availableWallets.length > 0 ? availableWallets[0] : null;
 }
 
 /**
