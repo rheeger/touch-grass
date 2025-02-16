@@ -192,7 +192,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
             )}
 
             {/* Render grouped attestations */}
-            {Object.entries(groupedAttestations).map(([_, group]) => {
+            {Object.entries(groupedAttestations).map(([, group]) => {
               // Sort group to ensure selected attestation is last (appears on top)
               const sortedGroup = [...group].sort((a, b) => {
                 if (a.id === selectedAttestation?.id) return 1;

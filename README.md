@@ -8,16 +8,14 @@ Touch Grass is a minimalist decentralized application (dApp) designed to encoura
 
 The app supports several simple but integral flows. Below is a detailed explanation of each:
 
-### 1. Authentication and Fee Management Flow
+### 1. Authentication Flow
 
-- **Purpose:** Secure user authentication with built-in transaction fee management.
+- **Purpose:** Secure user authentication.
 - **How It Works:**
-  - The application supports two authentication methods via Privy's API:
-    - **Wallet Connection:** Users connect their digital wallet securely through Privy's API, which leverages cryptographic signatures for robust session management and smart contract account provisioning.
-    - **Email Login:** Alternatively, users can sign in using their email address. Privy's API verifies the credentials, providing a convenient and secure login option.
-  - Upon successful authentication, the app seamlessly integrates paymaster support to manage transaction fees. This is accomplished using Coinbase Paymaster services combined with Biconomy smart wallet solutions, which automatically delegate and subsidize gas fee payments.
-  - This integrated approach ensures that users do not need to hold native tokens for transaction fees, thereby simplifying on-chain interactions.
-  - Comprehensive error handling is implemented to manage any issues that occur during authentication or fee delegation.
+  - The application uses Privy's API for authentication:
+    - **Wallet Connection:** Users connect their digital wallet securely through Privy's API.
+    - **Email Login:** Alternatively, users can sign in using their email address.
+  - Comprehensive error handling is implemented to manage any issues that occur during authentication.
 
 ### 2. Location Finding Flow
 
@@ -56,6 +54,33 @@ The app supports several simple but integral flows. Below is a detailed explanat
   - The app queries either a blockchain index or a dedicated backend service to retrieve past attestations.
   - This flow is designed to offer users insights into their outdoor activities with clear, chronological details of each event.
   - Data fetching includes retries and comprehensive error logging to handle communication issues.
+
+### 6. Global Feed Flow
+
+- **Purpose:** Provide a real-time view of grass-touching events from all users worldwide.
+- **How It Works:**
+  - The feed displays all attestations from the global community in a chronological view.
+  - Each attestation in the feed shows:
+    • Location data with interactive map markers
+    • Timestamp of the grass-touching event
+    • Success or failure status with visual indicators
+    • Distance from the user's current location
+  - Users can filter the feed to show only successful grass-touching events.
+  - Clicking on any feed item centers the map on that location and displays detailed information.
+
+### 7. Leaderboard Flow
+
+- **Purpose:** Create friendly competition and showcase the most active grass-touching community members.
+- **How It Works:**
+  - Ranks users based on their grass-touching frequency and success rate.
+  - The leaderboard displays:
+    • User wallet addresses (truncated for privacy)
+    • Total number of attestations
+    • Success rate percentage
+    • Recent activity status
+  - Users can click on any leaderboard entry to view that user's complete grass-touching history.
+  - Includes filters to view rankings by different time periods (all-time, monthly, weekly).
+  - Integrates with the map view to visualize selected user's grass-touching locations.
 
 ## Installation & Setup
 
@@ -101,7 +126,7 @@ We use [Jest](https://jestjs.io/) for unit and integration testing. To run tests
 npm run test
 ```
 
-Tests are located in the **tests** directory (or follow a \*.test.ts naming convention) and are designed to cover all critical flows, including login, location finding, grass-touching validation, attestation processing, and paymaster integrations.
+Tests are located in the **tests** directory (or follow a *.test.ts naming convention) and are designed to cover all critical flows, including login, location finding, grass-touching validation, and attestation processing.
 
 ## Useful Links and Documentation
 
@@ -110,8 +135,6 @@ Tests are located in the **tests** directory (or follow a \*.test.ts naming conv
 - [Google Places API Documentation](https://developers.google.com/maps/documentation/places/web-service/overview)
 - [Ethereum Attestation Service Documentation](https://ethereum-attestation-service.gitbook.io/)
 - [Astral Protocol Documentation](https://docs.astralprotocol.com/)
-- [Coinbase Paymaster Documentation](https://docs.coinbase.com/)
-- [Biconomy Smart Wallets Documentation](https://docs.biconomy.com/)
 
 ## Contributing
 
