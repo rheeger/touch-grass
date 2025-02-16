@@ -81,11 +81,13 @@
   }
 
   .leaderboard-progress-grass {
-    @apply h-full bg-green-500 rounded-full transition-all duration-300;
+    @apply h-full bg-green-500 transition-all duration-300;
+    border-radius: 9999px 0 0 9999px;
   }
 
   .leaderboard-progress-non-grass {
-    @apply absolute h-full bg-red-500 rounded-full transition-all duration-300;
+    @apply absolute h-full bg-red-500 transition-all duration-300;
+    border-radius: 0 9999px 9999px 0;
   }
 
   .leaderboard-progress-info {
