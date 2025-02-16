@@ -1,5 +1,5 @@
 import { type Attestation } from '@/utils/attestations';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import '@/styles/leaderboard.css';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
@@ -47,10 +47,11 @@ export function LeaderboardCard({
 }: LeaderboardCardProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});
+  const [isResolvingEns, setIsResolvingEns] = useState(false);
 
-  useEffect(() => {
-    // Calculate leaderboard data
-    const userStats = attestations.reduce((acc, attestation) => {
+  // Memoize user stats calculation
+  const userStats = useMemo(() => {
+    return attestations.reduce((acc, attestation) => {
       const address = attestation.attester;
       if (!acc[address]) {
         acc[address] = {
@@ -66,56 +67,85 @@ export function LeaderboardCard({
       }
       return acc;
     }, {} as Record<string, LeaderboardEntry>);
+  }, [attestations]);
 
-    // Convert to array and sort
-    const sortedLeaderboard = Object.values(userStats).sort((a, b) => {
+  // Memoize sorted leaderboard
+  const sortedLeaderboard = useMemo(() => {
+    return Object.values(userStats).sort((a, b) => {
       const aCount = showOnlyGrass ? a.grassCount : a.totalCount;
       const bCount = showOnlyGrass ? b.grassCount : b.totalCount;
       return bCount - aCount;
     });
+  }, [userStats, showOnlyGrass]);
 
-    setLeaderboard(sortedLeaderboard);
+  // Optimize ENS resolution with batching
+  useEffect(() => {
+    if (isResolvingEns) return;
 
-    // Resolve ENS names for all addresses
-    sortedLeaderboard.forEach(async (entry) => {
-      if (!entry.isPlaceholder) {
-        const ensName = await resolveEnsName(entry.address);
-        setEnsNames(prev => ({
-          ...prev,
-          [entry.address]: ensName
-        }));
+    const unresolvedAddresses = sortedLeaderboard
+      .filter(entry => !entry.isPlaceholder && ensNames[entry.address] === undefined)
+      .map(entry => entry.address);
+
+    if (unresolvedAddresses.length === 0) return;
+
+    const resolveNames = async () => {
+      setIsResolvingEns(true);
+      try {
+        const batchSize = 5;
+        for (let i = 0; i < unresolvedAddresses.length; i += batchSize) {
+          const batch = unresolvedAddresses.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(async address => ({
+              address,
+              name: await resolveEnsName(address)
+            }))
+          );
+          
+          setEnsNames(prev => ({
+            ...prev,
+            ...Object.fromEntries(results.map(({ address, name }) => [address, name]))
+          }));
+        }
+      } catch (error) {
+        console.error('Error resolving ENS names:', error);
+      } finally {
+        setIsResolvingEns(false);
       }
-    });
-  }, [attestations, showOnlyGrass]);
-
-  // Generate placeholder entries if needed
-  const displayEntries = [...Array(LEADERBOARD_SIZE)].map((_, index) => {
-    if (index < leaderboard.length) {
-      return {
-        ...leaderboard[index],
-        ensName: ensNames[leaderboard[index].address]
-      };
-    }
-    return {
-      address: '0x0000000000000000000000000000000000000000',
-      totalCount: 0,
-      grassCount: 0,
-      isPlaceholder: true,
-      ensName: null,
     };
-  });
 
-  const handleUserClick = (entry: LeaderboardEntry) => {
-    if (!entry.isPlaceholder) {
-      if (selectedUser === entry.address) {
-        // If clicking the same user, deselect them
-        onUserSelect(null);
-      } else {
-        // Select the new user
-        onUserSelect(entry.address);
+    resolveNames();
+  }, [sortedLeaderboard, ensNames, isResolvingEns]);
+
+  // Update leaderboard when sorted data changes
+  useEffect(() => {
+    setLeaderboard(sortedLeaderboard);
+  }, [sortedLeaderboard]);
+
+  // Memoize display entries
+  const displayEntries = useMemo(() => {
+    return [...Array(LEADERBOARD_SIZE)].map((_, index) => {
+      if (index < leaderboard.length) {
+        return {
+          ...leaderboard[index],
+          ensName: ensNames[leaderboard[index].address]
+        };
       }
+      return {
+        address: '0x0000000000000000000000000000000000000000',
+        totalCount: 0,
+        grassCount: 0,
+        isPlaceholder: true,
+        ensName: null,
+      };
+    });
+  }, [leaderboard, ensNames]);
+
+  // Memoize user click handler
+  const handleUserClick = useCallback((entry: LeaderboardEntry) => {
+    if (!entry.isPlaceholder) {
+      onUserSelect(selectedUser === entry.address ? null : entry.address);
     }
-  };
+  }, [selectedUser, onUserSelect]);
 
   return (
     <div className="leaderboard-card">

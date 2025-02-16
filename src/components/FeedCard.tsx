@@ -1,6 +1,6 @@
 import { type Attestation } from '@/utils/attestations';
 import { getRelativeTimeString, calculateDistance, formatDistance } from '@/utils/places';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
 interface FeedCardProps {
@@ -24,9 +24,60 @@ export function FeedCard({
 }: FeedCardProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});
+  const [isResolvingEns, setIsResolvingEns] = useState(false);
 
-  // Scroll to selected item when it changes
+  // Memoize filtered attestations to prevent unnecessary recalculations
+  const filteredAttestations = useMemo(() => 
+    showOnlyGrass ? attestations.filter(a => a.isTouchingGrass) : attestations,
+    [attestations, showOnlyGrass]
+  );
+
+  // Memoize unique attester addresses
+  const uniqueAttesterAddresses = useMemo(() => 
+    [...new Set(filteredAttestations.map(a => a.attester))],
+    [filteredAttestations]
+  );
+
+  // Optimize ENS resolution with debouncing and batching
   useEffect(() => {
+    if (isResolvingEns) return;
+
+    const unresolvedAddresses = uniqueAttesterAddresses.filter(
+      address => ensNames[address] === undefined
+    );
+
+    if (unresolvedAddresses.length === 0) return;
+
+    const resolveNames = async () => {
+      setIsResolvingEns(true);
+      try {
+        const batchSize = 5;
+        for (let i = 0; i < unresolvedAddresses.length; i += batchSize) {
+          const batch = unresolvedAddresses.slice(i, i + batchSize);
+          const results = await Promise.all(
+            batch.map(async address => ({
+              address,
+              name: await resolveEnsName(address)
+            }))
+          );
+          
+          setEnsNames(prev => ({
+            ...prev,
+            ...Object.fromEntries(results.map(({ address, name }) => [address, name]))
+          }));
+        }
+      } catch (error) {
+        console.error('Error resolving ENS names:', error);
+      } finally {
+        setIsResolvingEns(false);
+      }
+    };
+
+    resolveNames();
+  }, [uniqueAttesterAddresses, ensNames, isResolvingEns]);
+
+  // Memoize the scroll handler
+  const handleScroll = useCallback(() => {
     if (selectedAttestation && selectedItemRef.current) {
       try {
         selectedItemRef.current.scrollIntoView({
@@ -34,34 +85,15 @@ export function FeedCard({
           block: 'nearest',
         });
       } catch (e: unknown) {
-        // Fallback for Safari
         console.warn('Smooth scrolling not supported:', e);
         selectedItemRef.current.scrollIntoView(false);
       }
     }
   }, [selectedAttestation]);
 
-  // Resolve ENS names for attesters
   useEffect(() => {
-    const resolveAttesterNames = async () => {
-      const uniqueAttesterAddresses = [...new Set(attestations.map(a => a.attester))];
-      for (const address of uniqueAttesterAddresses) {
-        if (!ensNames[address]) {
-          const name = await resolveEnsName(address);
-          setEnsNames(prev => ({
-            ...prev,
-            [address]: name
-          }));
-        }
-      }
-    };
-    resolveAttesterNames();
-  }, [ensNames, attestations]);
-
-  // Filter attestations based on toggle
-  const filteredAttestations = showOnlyGrass
-    ? attestations.filter(a => a.isTouchingGrass)
-    : attestations;
+    handleScroll();
+  }, [handleScroll]);
 
   return (
     <div className="feed-card">
