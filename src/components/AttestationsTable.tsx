@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { type Attestation, getAttestations } from '@/utils/eas';
+import { type Attestation, getAttestations } from '@/utils/attestations';
 import { useAccount } from 'wagmi';
 
 interface AttestationsTableProps {

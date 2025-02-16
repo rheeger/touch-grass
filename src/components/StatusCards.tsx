@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { type Attestation } from '@/utils/eas';
+import { type Attestation } from '@/utils/attestations';
 import confetti from 'canvas-confetti';
 
 export interface StatusCardsProps {
@@ -20,7 +20,6 @@ export interface StatusCardsProps {
   isManualOverride: boolean;
   onManualOverride: () => void;
   walletAddress?: string;
-  userEmail?: string;
   onDisconnect: () => void;
   onConnect: () => void;
   isAuthenticated: boolean;
@@ -33,9 +32,10 @@ export interface StatusCardsProps {
 }
 
 // Add time formatting function
-function getRelativeTimeString(date: Date): string {
+function getRelativeTimeString(date: Date | string): string {
   const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+  const inputDate = date instanceof Date ? date : new Date(date);
+  const diffInSeconds = Math.floor((now.getTime() - inputDate.getTime()) / 1000);
 
   if (diffInSeconds < 60) {
     return 'just now';
@@ -79,7 +79,6 @@ export function StatusCards({
   isManualOverride,
   onManualOverride,
   walletAddress,
-  userEmail,
   onDisconnect,
   onConnect,
   isAuthenticated,
@@ -152,7 +151,7 @@ export function StatusCards({
               {isAuthenticated ? (
                 <div className="flex items-center space-x-2">
                   <span>
-                    {userEmail || (walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected')}
+                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
                   </span>
                   <button
                     onClick={onDisconnect}
@@ -242,6 +241,7 @@ export function StatusCards({
                                 isTouchingGrass ? 'bg-green-500' : 'bg-red-500'
                               }`}
                               style={{ width: `${detectionResult?.confidence || 0}%` }}
+                              data-testid="confidence-bar"
                             />
                           </div>
                         </div>

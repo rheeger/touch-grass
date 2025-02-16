@@ -1,71 +1,122 @@
-# Touch Grass
+# Touch Grass App
 
-A Web3 dApp that lets you prove you've touched grass using the Ethereum Attestation Service (EAS) on Base.
+## Overview
 
-## Features
+Touch Grass is a minimalist decentralized application (dApp) designed to encourage users to step outside and connect with nature by "touching grass." Through a series of straightforward flows, the app validates that users are engaging with the outdoors, records their experiences via blockchain attestations using the Ethereum Attestation Service (EAS), and provides a history of these verified events.
 
-- 🌱 Verify and attest to touching grass using geolocation
-- 🗺️ Interactive map interface with park detection
-- ⛓️ On-chain attestations using EAS on Base
-- 🎨 Modern UI with Tailwind CSS
-- 🔒 Secure wallet connection with Privy
+## Features & Flows
 
-## Tech Stack
+The app supports several simple but integral flows. Below is a detailed explanation of each:
 
-- Next.js 14 with App Router
-- TypeScript
-- Tailwind CSS
-- Ethereum Attestation Service (EAS)
-- Viem & Wagmi for Web3
-- Google Maps API
-- Privy for Wallet Connection
+### 1. Authentication and Fee Management Flow
 
-## Getting Started
+- **Purpose:** Secure user authentication with built-in transaction fee management.
+- **How It Works:**
+  - The application supports two authentication methods via Privy's API:
+    - **Wallet Connection:** Users connect their digital wallet securely through Privy's API, which leverages cryptographic signatures for robust session management and smart contract account provisioning.
+    - **Email Login:** Alternatively, users can sign in using their email address. Privy's API verifies the credentials, providing a convenient and secure login option.
+  - Upon successful authentication, the app seamlessly integrates paymaster support to manage transaction fees. This is accomplished using Coinbase Paymaster services combined with Biconomy smart wallet solutions, which automatically delegate and subsidize gas fee payments.
+  - This integrated approach ensures that users do not need to hold native tokens for transaction fees, thereby simplifying on-chain interactions.
+  - Comprehensive error handling is implemented to manage any issues that occur during authentication or fee delegation.
 
-1. Clone the repository:
+### 2. Location Finding Flow
+
+- **Purpose:** Ensure the user is present in a valid outdoor area.
+- **How It Works:**
+  - The app first uses the device's geolocation APIs (typically via HTML5 Geolocation) to capture the user's current coordinates.
+  - It then employs the Google Maps JavaScript API along with the Places API (as implemented in src/utils/places.ts) to analyze nearby landmarks, parks, and recreational venues.
+  - This integrated use of Google's geolocation, Places, and geometry libraries ensures that the location data is rigorously verified to determine if the user is in a valid outdoor (grassy) area.
+  - In cases where permissions are not granted or the location is inconclusive, the app provides meaningful error messages and fallback instructions.
+
+### 3. Grass Touching Algorithm Flow
+
+- **Purpose:** Validate the physical act of touching grass.
+- **How It Works:**
+  - Once the location data is confirmed, the app employs a dedicated algorithm (implemented in src/utils/places.ts) to validate that the user is truly engaging with a green space.
+  - The algorithm queries the Google Places API for nearby parks, golf courses, and campgrounds, then assesses whether the user's coordinates fall within a recognized park's viewport or are within 50 meters of a landmark.
+  - It cross-checks positive signals (such as recognized park names and natural features) against negative indicators (like proximity to urban buildings or establishments) to accurately determine a grass-touch event.
+  - Only after these multi-faceted checks pass does the app proceed to trigger the attestation process.
+
+### 4. EAS Attestation Flow
+
+- **Purpose:** Record a verifiable attestation on the blockchain that the user has touched grass.
+- **How It Works:**
+  - After a verified grass-touch event, the app calls the Ethereum Attestation Service (EAS) API to generate a cryptographically secure record of the action.
+  - The attestation is created using Astral Protocol's data schema (Schema ID: 0xA1B2C3D4E5) and publishes on-chain data including:
+    • A boolean flag indicating a successful grass-touch event
+    • The user's geolocation data (latitude and longitude)
+    • Additional contextual details such as the park name or sensor data if available
+  - This comprehensive record serves as an immutable proof-of-action for later verification and rewards.
+  - Robust logging and try-catch error handling ensure any issues during the blockchain interaction are promptly captured.
+
+### 5. Fetching History Flow
+
+- **Purpose:** Provide users with a history log of their grass-touching attestations.
+- **How It Works:**
+  - The app queries either a blockchain index or a dedicated backend service to retrieve past attestations.
+  - This flow is designed to offer users insights into their outdoor activities with clear, chronological details of each event.
+  - Data fetching includes retries and comprehensive error logging to handle communication issues.
+
+## Installation & Setup
+
+1. **Clone the Repository:**
+
    ```bash
-   git clone https://github.com/rheeger/touch-grass.git
+   git clone https://github.com/yourusername/touch-grass.git
    cd touch-grass
    ```
 
-2. Install dependencies:
+2. **Install Dependencies:**
+
    ```bash
    npm install
    ```
 
-3. Create a `.env.local` file with your API keys:
-   ```
-   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=your_google_maps_api_key
-   NEXT_PUBLIC_PRIVY_APP_ID=your_privy_app_id
-   NEXT_PUBLIC_EAS_CONTRACT_ADDRESS=your_eas_contract_address
-   NEXT_PUBLIC_RPC_URL=your_rpc_url
-   NEXT_PUBLIC_APP_ENV=local
-   ```
-
-   Environment variables:
-   - `NEXT_PUBLIC_APP_ENV`: Set to 'local' for development (allows map pin movement) or 'production' for production (restricts to current location only)
-   - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`: Your Google Maps API key
-   - `NEXT_PUBLIC_PRIVY_APP_ID`: Your Privy App ID for wallet connection
-   - `NEXT_PUBLIC_EAS_CONTRACT_ADDRESS`: The EAS contract address on Base
-   - `NEXT_PUBLIC_RPC_URL`: Your RPC URL for connecting to Base network
-
-4. Run the development server:
+3. **Run the Development Server:**
    ```bash
    npm run dev
    ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+## Project Structure
 
-## Smart Contract Details
+The source code is organized as follows:
 
-- EAS Contract (Base): `0x4200000000000000000000000000000000000021`
-- Schema Registry (Base): `0x4200000000000000000000000000000000000020`
-- Schema: `bool isTouchingGrass, int256 lat, int256 lon`
+- **src/app/** - Contains the application entry point and main flow management (routing, state, etc.).
+- **src/components/** - Reusable UI components for the app interface.
+- **src/utils/** - Utility functions (including location services, algorithm logic, and blockchain interaction helpers).
+- **src/types/** - TypeScript definitions and interfaces.
+- **src/styles/** - Styling resources for the app.
+
+## Logging & Error Handling
+
+- All critical operations include comprehensive error handling with try-catch blocks.
+- Detailed logging is implemented to track application flows and assist in troubleshooting.
+- For blockchain interactions and external API calls, errors are logged with contextual details.
+
+## Testing
+
+We use [Jest](https://jestjs.io/) for unit and integration testing. To run tests, execute:
+
+```bash
+npm run test
+```
+
+Tests are located in the **tests** directory (or follow a \*.test.ts naming convention) and are designed to cover all critical flows, including login, location finding, grass-touching validation, attestation processing, and paymaster integrations.
+
+## Useful Links and Documentation
+
+- [Privy API Documentation](https://docs.privy.id)
+- [Google Maps JavaScript API](https://developers.google.com/maps/documentation/javascript/overview)
+- [Google Places API Documentation](https://developers.google.com/maps/documentation/places/web-service/overview)
+- [Ethereum Attestation Service Documentation](https://ethereum-attestation-service.gitbook.io/)
+- [Astral Protocol Documentation](https://docs.astralprotocol.com/)
+- [Coinbase Paymaster Documentation](https://docs.coinbase.com/)
+- [Biconomy Smart Wallets Documentation](https://docs.biconomy.com/)
 
 ## Contributing
 
-Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
+Contributions are welcome! Please ensure that any new features or bug fixes align with the existing code style and best practices outlined in the project guidelines. Ensure to include appropriate tests and documentation for any changes.
 
 ## License
 
-MIT
+[MIT](LICENSE)
