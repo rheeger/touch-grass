@@ -157,6 +157,28 @@ export default function Home() {
     }
   }, []);
 
+  // Add new effect for initial grass analysis
+  useEffect(() => {
+    const analyzeInitialLocation = async () => {
+      if (location && mapRef.current && !detectionResult && !isAnalyzing) {
+        setIsAnalyzing(true);
+        try {
+          const result = await analyzeGrass(location.lat, location.lng, mapRef.current, false);
+          setIsTouchingGrass(result.isTouchingGrass);
+          setDetectionResult(result);
+        } catch (error) {
+          console.error('Error analyzing initial location:', error);
+          setIsTouchingGrass(false);
+          setDetectionResult(null);
+        } finally {
+          setIsAnalyzing(false);
+        }
+      }
+    };
+
+    analyzeInitialLocation();
+  }, [location, mapRef.current, detectionResult, isAnalyzing]);
+
   // Add effect to check location distance in production
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_APP_ENV === 'production' && location && initialLocation) {

@@ -220,7 +220,7 @@ export async function analyzePlacesData(
         
         if (details.geometry.location) {
           const distance = google.maps.geometry.spherical.computeDistanceBetween(userLocation, details.geometry.location);
-          isVeryClose = distance < 50; // Within 50 meters
+          isVeryClose = distance < 30; // Within 30 meters
           
           if (isInside) {
             result.isInPark = true;
