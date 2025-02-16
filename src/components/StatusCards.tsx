@@ -119,8 +119,8 @@ export function StatusCards({
   };
 
   return (
-    <div className="relative w-full max-w-3xl">
-      <div className="overflow-hidden">
+    <div className="fixed bottom-0 left-0 right-0 z-10">
+      <div className="max-w-3xl mx-auto">
         <div className={`flex transition-transform duration-300 ease-in-out ${
           currentView === 'status' ? 'translate-x-0' :
           currentView === 'menu' ? '-translate-x-full' :
