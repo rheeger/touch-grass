@@ -79,28 +79,21 @@ export function StatusCards({
   const [ensName, setEnsName] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchEnsName() {
-      if (walletAddress) {
-        const name = await resolveEnsName(walletAddress);
-        setEnsName(name);
-      } else {
-        setEnsName(null);
-      }
+    if (walletAddress) {
+      resolveEnsName(walletAddress).then(name => setEnsName(name));
+    } else {
+      setEnsName(null);
     }
-    fetchEnsName();
   }, [walletAddress]);
 
-  // Handle success animation
   useEffect(() => {
     if (!isCreatingAttestation && showSuccessAnimation) {
-      // Trigger confetti
       confetti({
         particleCount: 100,
         spread: 70,
         origin: { y: 0.6 }
       });
 
-      // Reset success state after animation
       const timer = setTimeout(() => {
         setShowSuccessAnimation(false);
       }, 3000);
@@ -121,14 +114,7 @@ export function StatusCards({
   return (
     <div className="fixed bottom-0 left-0 right-0 z-10">
       <div className="max-w-3xl mx-auto">
-        <div className={`flex transition-transform duration-300 ease-in-out ${
-          currentView === 'status' ? 'translate-x-0' :
-          currentView === 'menu' ? '-translate-x-full' :
-          currentView === 'history' ? '-translate-x-[200%]' :
-          currentView === 'feed' ? '-translate-x-[200%]' :
-          '-translate-x-[200%]'
-        }`}>
-          {/* Main Status Card */}
+        {currentView === 'status' && (
           <div className="status-card">
             <div className="status-header">
               <div className="flex items-center space-x-4">
@@ -279,8 +265,9 @@ export function StatusCards({
               )}
             </div>
           </div>
+        )}
 
-          {/* Menu Card */}
+        {currentView === 'menu' && (
           <MenuCard
             onSelectFeed={() => onViewChange('feed')}
             onSelectHistory={() => onViewChange('history')}
@@ -292,51 +279,48 @@ export function StatusCards({
             onConnect={onConnect}
             isAuthenticated={isAuthenticated}
           />
+        )}
 
-          {/* History Card */}
-          {currentView === 'history' && (
-            <HistoryCard
-              onSelectAttestation={onSelectAttestation}
-              selectedAttestation={selectedAttestation}
-              attestations={attestations}
-              currentLocation={location}
-              onBack={handleBack}
-              isLoadingHistory={isLoadingHistory}
-              showOnlyGrass={showOnlyGrass}
-              onShowOnlyGrassChange={onShowOnlyGrassChange}
-              isAuthenticated={isAuthenticated}
-              onConnect={onConnect}
-            />
-          )}
+        {currentView === 'history' && (
+          <HistoryCard
+            onSelectAttestation={onSelectAttestation}
+            selectedAttestation={selectedAttestation}
+            attestations={attestations}
+            currentLocation={location}
+            onBack={handleBack}
+            isLoadingHistory={isLoadingHistory}
+            showOnlyGrass={showOnlyGrass}
+            onShowOnlyGrassChange={onShowOnlyGrassChange}
+            isAuthenticated={isAuthenticated}
+            onConnect={onConnect}
+          />
+        )}
 
-          {/* Feed Card */}
-          {currentView === 'feed' && (
-            <FeedCard
-              attestations={allAttestations}
-              currentLocation={location}
-              onSelectAttestation={onSelectAttestation}
-              selectedAttestation={selectedAttestation}
-              onBack={handleBack}
-              showOnlyGrass={showOnlyGrass}
-              onShowOnlyGrassChange={onShowOnlyGrassChange}
-            />
-          )}
+        {currentView === 'feed' && (
+          <FeedCard
+            attestations={allAttestations}
+            currentLocation={location}
+            onSelectAttestation={onSelectAttestation}
+            selectedAttestation={selectedAttestation}
+            onBack={handleBack}
+            showOnlyGrass={showOnlyGrass}
+            onShowOnlyGrassChange={onShowOnlyGrassChange}
+          />
+        )}
 
-          {/* Leaderboard Card */}
-          {currentView === 'leaderboard' && (
-            <LeaderboardCard
-              attestations={allAttestations}
-              onBack={() => {
-                handleBack();
-                onUserSelect(null);
-              }}
-              showOnlyGrass={showOnlyGrass}
-              onShowOnlyGrassChange={onShowOnlyGrassChange}
-              selectedUser={selectedUser}
-              onUserSelect={onUserSelect}
-            />
-          )}
-        </div>
+        {currentView === 'leaderboard' && (
+          <LeaderboardCard
+            attestations={allAttestations}
+            onBack={() => {
+              handleBack();
+              onUserSelect(null);
+            }}
+            showOnlyGrass={showOnlyGrass}
+            onShowOnlyGrassChange={onShowOnlyGrassChange}
+            selectedUser={selectedUser}
+            onUserSelect={onUserSelect}
+          />
+        )}
       </div>
     </div>
   );
