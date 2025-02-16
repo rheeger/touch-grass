@@ -149,7 +149,7 @@ export function StatusCards({
                       onClick={onDisconnect}
                       className="wallet-disconnect"
                     >
-                      Disconnect
+                      Log out
                     </button>
                   </>
                 ) : (
@@ -157,7 +157,7 @@ export function StatusCards({
                     onClick={onConnect}
                     className="wallet-connect"
                   >
-                    Connect Wallet
+                    Log in
                   </button>
                 )}
               </div>

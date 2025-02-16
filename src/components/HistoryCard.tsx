@@ -90,7 +90,7 @@ export function HistoryCard({
                 onClick={onConnect}
                 className="menu-wallet-connect mt-2"
               >
-                Connect
+                Log in
               </button>
             )}
           </div>
