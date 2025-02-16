@@ -45,7 +45,7 @@ export const mapOptions = {
   fullscreenControl: false,
   gestureHandling: 'greedy',
   minZoom: 14,
-  maxZoom: 20,
+  maxZoom: 22,
 } as const;
 
 export const libraries: ("places" | "geometry")[] = ["places", "geometry"];
