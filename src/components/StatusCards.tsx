@@ -7,6 +7,7 @@ import { MenuCard } from './MenuCard';
 import { FeedCard } from './FeedCard';
 import { HistoryCard } from './HistoryCard';
 import { LeaderboardCard } from './LeaderboardCard';
+import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
 export interface StatusCardsProps {
   isLoading: boolean;
@@ -75,6 +76,19 @@ export function StatusCards({
   onUserSelect,
 }: StatusCardsProps) {
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [ensName, setEnsName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchEnsName() {
+      if (walletAddress) {
+        const name = await resolveEnsName(walletAddress);
+        setEnsName(name);
+      } else {
+        setEnsName(null);
+      }
+    }
+    fetchEnsName();
+  }, [walletAddress]);
 
   // Handle success animation
   useEffect(() => {
@@ -115,36 +129,38 @@ export function StatusCards({
           '-translate-x-[200%]'
         }`}>
           {/* Main Status Card */}
-          <div className="flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-xl shadow-lg text-white font-mono h-[360px] flex flex-col">
-            <div className="flex items-center justify-between text-xs mb-3">
+          <div className="status-card">
+            <div className="status-header">
               <div className="flex items-center space-x-4">
                 <button
                   onClick={() => onViewChange('menu')}
-                  className="text-white hover:text-gray-300 flex items-center space-x-2"
+                  className="status-menu-button"
                 >
                   <span>MENU</span>
                 </button>
               </div>
-              {isAuthenticated ? (
-                <div className="flex items-center space-x-2">
-                  <span>
-                    {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
-                  </span>
+              <div className="wallet-info">
+                {isAuthenticated ? (
+                  <>
+                    <span className="wallet-address">
+                      {formatAddressOrEns(walletAddress || '', ensName)}
+                    </span>
+                    <button
+                      onClick={onDisconnect}
+                      className="wallet-disconnect"
+                    >
+                      Disconnect
+                    </button>
+                  </>
+                ) : (
                   <button
-                    onClick={onDisconnect}
-                    className="text-red-400 hover:text-red-300"
+                    onClick={onConnect}
+                    className="wallet-connect"
                   >
-                    Disconnect
+                    Connect Wallet
                   </button>
-                </div>
-              ) : (
-                <button
-                  onClick={onConnect}
-                  className="text-green-400 hover:text-green-300"
-                >
-                  Connect
-                </button>
-              )}
+                )}
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto">

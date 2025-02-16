@@ -1,6 +1,7 @@
 import { type Attestation } from '@/utils/attestations';
 import { useState, useEffect } from 'react';
 import '@/styles/leaderboard.css';
+import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
 interface LeaderboardCardProps {
   attestations: Attestation[];
@@ -16,6 +17,7 @@ interface LeaderboardEntry {
   totalCount: number;
   grassCount: number;
   isPlaceholder?: boolean;
+  ensName?: string | null;
 }
 
 const PROGRESS_BAR_MAX = 30; // Maximum scale for progress bar
@@ -44,6 +46,7 @@ export function LeaderboardCard({
   onUserSelect,
 }: LeaderboardCardProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});
 
   useEffect(() => {
     // Calculate leaderboard data
@@ -54,6 +57,7 @@ export function LeaderboardCard({
           address,
           totalCount: 0,
           grassCount: 0,
+          ensName: null,
         };
       }
       acc[address].totalCount++;
@@ -71,18 +75,33 @@ export function LeaderboardCard({
     });
 
     setLeaderboard(sortedLeaderboard);
+
+    // Resolve ENS names for all addresses
+    sortedLeaderboard.forEach(async (entry) => {
+      if (!entry.isPlaceholder) {
+        const ensName = await resolveEnsName(entry.address);
+        setEnsNames(prev => ({
+          ...prev,
+          [entry.address]: ensName
+        }));
+      }
+    });
   }, [attestations, showOnlyGrass]);
 
   // Generate placeholder entries if needed
   const displayEntries = [...Array(LEADERBOARD_SIZE)].map((_, index) => {
     if (index < leaderboard.length) {
-      return leaderboard[index];
+      return {
+        ...leaderboard[index],
+        ensName: ensNames[leaderboard[index].address]
+      };
     }
     return {
       address: '0x0000000000000000000000000000000000000000',
       totalCount: 0,
       grassCount: 0,
       isPlaceholder: true,
+      ensName: null,
     };
   });
 
@@ -155,7 +174,7 @@ export function LeaderboardCard({
                       {entry.isPlaceholder ? (
                         <span className="leaderboard-address-placeholder">Unclaimed</span>
                       ) : (
-                        `${entry.address.slice(0, 6)}...${entry.address.slice(-4)}`
+                        formatAddressOrEns(entry.address, entry.ensName)
                       )}
                     </div>
                   </div>

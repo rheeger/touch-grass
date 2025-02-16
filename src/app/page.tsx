@@ -177,7 +177,7 @@ export default function Home() {
     };
 
     analyzeInitialLocation();
-  }, [location, mapRef.current, detectionResult, isAnalyzing]);
+  }, [location, detectionResult, isAnalyzing]);
 
   // Add effect to check location distance in production
   useEffect(() => {
