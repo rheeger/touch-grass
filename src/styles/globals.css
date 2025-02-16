@@ -8,6 +8,7 @@
 @import './privy-overrides.css';
 
 /* Import component styles */
+@import './status.css';
 @import './history.css';
 @import './menu.css';
 @import './leaderboard.css';

@@ -1,4 +1,6 @@
 import '@/styles/menu.css';
+import { useState, useEffect } from 'react';
+import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
 interface MenuCardProps {
   onSelectFeed: () => void;
@@ -23,6 +25,20 @@ export function MenuCard({
   onConnect,
   isAuthenticated,
 }: MenuCardProps) {
+  const [ensName, setEnsName] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchEnsName() {
+      if (walletAddress) {
+        const name = await resolveEnsName(walletAddress);
+        setEnsName(name);
+      } else {
+        setEnsName(null);
+      }
+    }
+    fetchEnsName();
+  }, [walletAddress]);
+
   return (
     <div className="menu-card">
       <div className="menu-header">
@@ -39,7 +55,7 @@ export function MenuCard({
         {isAuthenticated ? (
           <div className="menu-wallet">
             <span className="menu-wallet-address">
-              {walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Connected'}
+              {formatAddressOrEns(walletAddress || '', ensName)}
             </span>
             <button
               onClick={onDisconnect}
@@ -59,8 +75,7 @@ export function MenuCard({
       </div>
 
       <div className="menu-content">
-
-      <button
+        <button
           onClick={onSelectHistory}
           className="menu-button"
         >
@@ -72,7 +87,6 @@ export function MenuCard({
             </div>
           </div>
         </button>
-
 
         <button
           onClick={onSelectFeed}

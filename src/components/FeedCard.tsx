@@ -1,6 +1,7 @@
 import { type Attestation } from '@/utils/attestations';
 import { getRelativeTimeString, calculateDistance, formatDistance } from '@/utils/places';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 
 interface FeedCardProps {
   attestations: Attestation[];
@@ -22,6 +23,7 @@ export function FeedCard({
   onShowOnlyGrassChange,
 }: FeedCardProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});
 
   // Scroll to selected item when it changes
   useEffect(() => {
@@ -32,6 +34,23 @@ export function FeedCard({
       });
     }
   }, [selectedAttestation]);
+
+  // Resolve ENS names for attesters
+  useEffect(() => {
+    const resolveAttesterNames = async () => {
+      const uniqueAttesterAddresses = [...new Set(attestations.map(a => a.attester))];
+      for (const address of uniqueAttesterAddresses) {
+        if (!ensNames[address]) {
+          const name = await resolveEnsName(address);
+          setEnsNames(prev => ({
+            ...prev,
+            [address]: name
+          }));
+        }
+      }
+    };
+    resolveAttesterNames();
+  }, [ensNames, attestations]);
 
   // Filter attestations based on toggle
   const filteredAttestations = showOnlyGrass
@@ -107,7 +126,7 @@ export function FeedCard({
                         {attestation.isTouchingGrass ? 'Touching Grass' : 'Not Touching Grass'}
                       </div>
                       <div className="feed-item-attester">
-                        by {`${attestation.attester.slice(0, 6)}...${attestation.attester.slice(-4)}`}
+                        by {formatAddressOrEns(attestation.attester, ensNames[attestation.attester])}
                       </div>
                     </div>
                     <div className="feed-item-right">

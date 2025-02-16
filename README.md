@@ -6,6 +6,18 @@ Touch Grass is a minimalist decentralized application (dApp) designed to encoura
 
 ## Features & Flows
 
+The app supports several simple but integral flows and features:
+
+### Features
+
+- **ENS Resolution:** Seamlessly resolves and displays Ethereum Name Service (ENS) names for all wallet addresses across the app, enhancing user experience with human-readable names instead of long hexadecimal addresses.
+- **Real-time Location Validation:** Uses device geolocation and advanced mapping APIs to verify user presence in outdoor areas.
+- **Blockchain Attestations:** Creates immutable records of grass-touching events using EAS.
+- **Interactive Map Interface:** Visualizes grass-touching events and locations with an intuitive map interface.
+- **Community Features:** Includes global feed, leaderboard, and user profiles to foster community engagement.
+
+### Flows
+
 The app supports several simple but integral flows. Below is a detailed explanation of each:
 
 ### 1. Authentication Flow
