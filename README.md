@@ -22,8 +22,6 @@ The app supports several simple but integral flows. Below is a detailed explanat
 - **Purpose:** Ensure the user is present in a valid outdoor area.
 - **How It Works:**
   - The app first uses the device's geolocation APIs (typically via HTML5 Geolocation) to capture the user's current coordinates.
-  - It then employs the Google Maps JavaScript API along with the Places API (as implemented in src/utils/places.ts) to analyze nearby landmarks, parks, and recreational venues.
-  - This integrated use of Google's geolocation, Places, and geometry libraries ensures that the location data is rigorously verified to determine if the user is in a valid outdoor (grassy) area.
   - In cases where permissions are not granted or the location is inconclusive, the app provides meaningful error messages and fallback instructions.
 
 ### 3. Grass Touching Algorithm Flow
@@ -31,7 +29,7 @@ The app supports several simple but integral flows. Below is a detailed explanat
 - **Purpose:** Validate the physical act of touching grass.
 - **How It Works:**
   - Once the location data is confirmed, the app employs a dedicated algorithm (implemented in src/utils/places.ts) to validate that the user is truly engaging with a green space.
-  - The algorithm queries the Google Places API for nearby parks, golf courses, and campgrounds, then assesses whether the user's coordinates fall within a recognized park's viewport or are within 50 meters of a landmark.
+  - The algorithm queries the Google Places API for nearby parks, golf courses, and campgrounds, then assesses whether the user's coordinates fall within a recognized park's viewport or are within 30 meters of a landmark.
   - It cross-checks positive signals (such as recognized park names and natural features) against negative indicators (like proximity to urban buildings or establishments) to accurately determine a grass-touch event.
   - Only after these multi-faceted checks pass does the app proceed to trigger the attestation process.
 
