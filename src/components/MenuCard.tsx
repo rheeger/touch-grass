@@ -61,7 +61,7 @@ export function MenuCard({
               onClick={onDisconnect}
               className="menu-wallet-disconnect"
             >
-              Disconnect
+              Log out
             </button>
           </div>
         ) : (
@@ -69,7 +69,7 @@ export function MenuCard({
             onClick={onConnect}
             className="menu-wallet-connect"
           >
-            Connect
+            Log in
           </button>
         )}
       </div>

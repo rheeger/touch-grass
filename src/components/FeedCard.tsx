@@ -28,10 +28,16 @@ export function FeedCard({
   // Scroll to selected item when it changes
   useEffect(() => {
     if (selectedAttestation && selectedItemRef.current) {
-      selectedItemRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'nearest',
-      });
+      try {
+        selectedItemRef.current.scrollIntoView({
+          behavior: 'auto',
+          block: 'nearest',
+        });
+      } catch (e: unknown) {
+        // Fallback for Safari
+        console.warn('Smooth scrolling not supported:', e);
+        selectedItemRef.current.scrollIntoView(false);
+      }
     }
   }, [selectedAttestation]);
 
