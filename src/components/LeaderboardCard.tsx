@@ -143,12 +143,13 @@ export function LeaderboardCard({
   // Memoize user click handler
   const handleUserClick = useCallback((entry: LeaderboardEntry) => {
     if (!entry.isPlaceholder) {
-      onUserSelect(selectedUser === entry.address ? null : entry.address);
+      const newSelectedUser = selectedUser === entry.address ? null : entry.address;
+      onUserSelect(newSelectedUser);
     }
   }, [selectedUser, onUserSelect]);
 
   return (
-    <div className="leaderboard-card">
+    <div className="leaderboard-card h-[50vh]">
       <div className="leaderboard-header">
         <div className="flex items-center space-x-4">
           <button
@@ -156,7 +157,7 @@ export function LeaderboardCard({
             className="leaderboard-back-button"
           >
             <span>←</span>
-            <span>Back</span>
+            <span>BACK</span>
           </button>
           <span className="leaderboard-title">LEADERBOARD</span>
         </div>

@@ -1,5 +1,6 @@
   .leaderboard-card {
-    @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+    @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono flex flex-col;
+    height: 50vh;
   }
 
   .leaderboard-header {
@@ -7,11 +8,11 @@
   }
 
   .leaderboard-back-button {
-    @apply flex items-center space-x-2 text-xs text-white/60 hover:text-white transition-colors;
+    @apply flex items-center space-x-2 text-xs text-white hover:text-white/80 transition-colors;
   }
 
   .leaderboard-title {
-    @apply text-xs font-medium;
+    @apply text-xs font-medium text-white/60;
   }
 
   .leaderboard-content {

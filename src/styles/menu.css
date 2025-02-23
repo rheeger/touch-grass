@@ -1,6 +1,6 @@
 /* MenuCard Styles */
 .menu-card {
-  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono flex flex-col;
 }
 
 .menu-header {
@@ -8,11 +8,11 @@
 }
 
 .menu-back-button {
-  @apply flex items-center space-x-2 text-xs text-white/60 hover:text-white transition-colors;
+  @apply flex items-center space-x-2 text-xs text-white hover:text-white/80 transition-colors;
 }
 
 .menu-title {
-  @apply text-xs font-light;
+  @apply text-xs font-light text-white/60;
 }
 
 /* Menu-specific styles */

@@ -1,19 +1,23 @@
 /* StatusCard Styles */
 .status-card {
-  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono h-[360px] flex flex-col;
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono flex flex-col;
 }
 
 .status-header {
-  @apply flex items-center justify-between text-xs mb-3;
+  @apply flex items-center justify-between mb-3;
 }
 
 .status-menu-button {
-  @apply text-white hover:text-gray-300 flex items-center space-x-2;
+  @apply flex items-center space-x-2 text-xs text-white hover:text-white/80 transition-colors;
+}
+
+.status-content {
+  @apply flex-1;
 }
 
 /* Wallet Info Styles */
 .wallet-info {
-  @apply flex items-center;
+  @apply flex items-center space-x-2;
 }
 
 .wallet-address {
@@ -21,7 +25,7 @@
 }
 
 .wallet-disconnect {
-  @apply text-red-400 hover:text-red-300 ml-2 text-xs;
+  @apply text-red-400 hover:text-red-300 text-xs;
 }
 
 .wallet-connect {

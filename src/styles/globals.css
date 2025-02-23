@@ -9,7 +9,7 @@
 
 /* Import component styles */
 @import './status.css';
-@import './history.css';
 @import './menu.css';
 @import './leaderboard.css';
-@import './feed.css'; 
+@import './listcard.css';
+@import './tooltip.css';

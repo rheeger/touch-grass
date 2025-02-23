@@ -1,0 +1,12 @@
+/* Tooltip Styles */
+.tooltip-trigger {
+  @apply inline-block;
+}
+
+.tooltip-content {
+  @apply z-50 px-3 py-2 text-xs text-white bg-black/90 rounded-lg font-mono;
+}
+
+.tooltip-arrow {
+  @apply bg-black/90;
+} 

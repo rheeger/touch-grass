@@ -1,0 +1,120 @@
+/* ListCard Styles */
+.list-card {
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono flex flex-col;
+  height: 50vh;
+}
+
+.list-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.list-back-button {
+  @apply flex items-center space-x-2 text-xs text-white hover:text-white/80 transition-colors;
+}
+
+.list-title {
+  @apply text-xs font-medium text-white/60;
+}
+
+.list-loading {
+  @apply text-xs text-white/60 animate-pulse;
+}
+
+.list-content {
+  @apply flex-1 overflow-hidden;
+}
+
+.list-empty {
+  @apply flex items-center justify-center h-full text-white/60;
+}
+
+.list-items {
+  @apply space-y-2 overflow-y-auto h-full;
+  scrollbar-gutter: stable;
+}
+
+/* List item styles */
+.list-item {
+  @apply p-3 rounded-lg cursor-pointer transition-colors;
+}
+
+.list-item-default {
+  @apply bg-white/5 hover:bg-white/10;
+}
+
+.list-item-selected {
+  @apply bg-white/20;
+}
+
+.list-item-header {
+  @apply flex flex-col gap-2;
+}
+
+.list-item-top {
+  @apply flex items-start justify-between;
+}
+
+.list-item-status {
+  @apply text-xs font-medium px-2 py-0.5 rounded;
+}
+
+.list-item-status-grass {
+  @apply bg-green-500/20 text-green-300;
+}
+
+.list-item-status-no-grass {
+  @apply bg-red-500/20 text-red-300;
+}
+
+.list-item-coordinates {
+  @apply flex items-center gap-2;
+}
+
+.list-item-coords {
+  @apply text-xs text-white/60;
+}
+
+.list-item-globe {
+  @apply text-white/60 hover:text-white transition-colors cursor-pointer;
+}
+
+.list-item-location {
+  @apply mt-2;
+}
+
+.list-item-place {
+  @apply text-base font-medium;
+}
+
+.list-item-address {
+  @apply text-sm text-white/60;
+}
+
+.list-item-footer {
+  @apply flex justify-between items-center mt-2;
+}
+
+.list-item-byline {
+  @apply text-xs text-white/60;
+}
+
+.list-item-metadata {
+  @apply flex items-center gap-2 text-xs text-white/60;
+}
+
+/* View toggle styles */
+.view-toggle {
+  @apply flex space-x-2;
+}
+
+.view-toggle-button {
+  @apply text-xs px-2 py-1 rounded transition-colors;
+}
+
+.view-toggle-button-active {
+  @apply bg-white/20 text-white;
+}
+
+.view-toggle-button-inactive {
+  @apply bg-white/5 text-white/60 hover:bg-white/10;
+} 

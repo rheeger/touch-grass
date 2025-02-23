@@ -1,11 +1,15 @@
 import '@/styles/menu.css';
 import { useState, useEffect } from 'react';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
+import { getRegistrationStatus } from '@/utils/registration';
+import { RegistrationWarning } from './RegistrationWarning';
+import Logger from '@/utils/logger';
 
 interface MenuCardProps {
   onSelectFeed: () => void;
   onSelectHistory: () => void;
   onSelectLeaderboard: () => void;
+  onSelectAbout: () => void;
   onBack: () => void;
   attestationCount: number;
   walletAddress?: string;
@@ -18,6 +22,7 @@ export function MenuCard({
   onSelectFeed,
   onSelectHistory,
   onSelectLeaderboard,
+  onSelectAbout,
   onBack,
   attestationCount,
   walletAddress,
@@ -26,6 +31,7 @@ export function MenuCard({
   isAuthenticated,
 }: MenuCardProps) {
   const [ensName, setEnsName] = useState<string | null>(null);
+  const [hasAntedUp, setHasAntedUp] = useState(false);
 
   useEffect(() => {
     async function fetchEnsName() {
@@ -39,6 +45,18 @@ export function MenuCard({
     fetchEnsName();
   }, [walletAddress]);
 
+  useEffect(() => {
+    if (isAuthenticated && walletAddress) {
+      getRegistrationStatus(walletAddress).then(status => {
+        setHasAntedUp(status.isRegistered);
+        Logger.info('Registration status checked', { walletAddress, status });
+      }).catch(error => {
+        Logger.error('Failed to check registration status', { error });
+        setHasAntedUp(false);
+      });
+    }
+  }, [isAuthenticated, walletAddress]);
+
   return (
     <div className="menu-card">
       <div className="menu-header">
@@ -48,20 +66,21 @@ export function MenuCard({
             className="menu-back-button"
           >
             <span>←</span>
-            <span>Back</span>
+            <span>BACK</span>
           </button>
           <span className="menu-title">MENU</span>
         </div>
         {isAuthenticated ? (
           <div className="menu-wallet">
             <span className="menu-wallet-address">
+              {!hasAntedUp && <RegistrationWarning className="mr-2" />}
               {formatAddressOrEns(walletAddress || '', ensName)}
             </span>
             <button
               onClick={onDisconnect}
               className="menu-wallet-disconnect"
             >
-              Log out
+              LOG OUT
             </button>
           </div>
         ) : (
@@ -69,12 +88,25 @@ export function MenuCard({
             onClick={onConnect}
             className="menu-wallet-connect"
           >
-            Log in
+            LOG IN
           </button>
         )}
       </div>
 
       <div className="menu-content">
+        <button
+          onClick={onSelectAbout}
+          className="menu-button"
+        >
+          <span className="menu-button-emoji">🌱</span>
+          <div className="menu-button-content">
+            <div className="menu-button-title">About</div>
+            <div className="menu-button-description">
+              Learn about the Touch Grass Challenge
+            </div>
+          </div>
+        </button>
+
         <button
           onClick={onSelectHistory}
           className="menu-button"

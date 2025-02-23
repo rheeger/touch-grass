@@ -30,22 +30,20 @@ export const MARKER_STYLES = `
     animation: pulse 2s infinite;
     transform: translate(-50%, -50%);
   }
-  .walking-person {
-    filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.5));
-  }
 `;
 
 export const mapOptions = {
-  mapTypeId: 'satellite',
+  mapTypeId: 'hybrid',
   disableDefaultUI: true,
   zoomControl: false,
   mapTypeControl: false,
+  clickableIcons: false,
   streetViewControl: false,
   rotateControl: false,
-  fullscreenControl: false,
+  fullscreenControl: true,
   gestureHandling: 'greedy',
-  minZoom: 14,
-  maxZoom: 22,
+  minZoom: 3,
+  maxZoom: 28,
 } as const;
 
 export const libraries: ("places" | "geometry")[] = ["places", "geometry"];

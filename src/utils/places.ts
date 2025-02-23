@@ -1,4 +1,6 @@
 // Time utilities
+import Logger from '@/utils/logger';
+
 export function getRelativeTimeString(date: Date | string): string {
   const now = new Date();
   const inputDate = date instanceof Date ? date : new Date(date);
@@ -62,9 +64,9 @@ export function calculateDistance(
 
 export function formatDistance(distance: number): string {
   if (distance < 1) {
-    return `${Math.round(distance * 1000)}m`;
+    return `${Math.round(distance * 1000).toLocaleString()}m`;
   }
-  return `${Math.round(distance)}km`;
+  return `${Math.round(distance).toLocaleString()}km`;
 }
 
 // Places analysis types and utilities
@@ -113,22 +115,24 @@ export async function analyzePlacesData(
   }
 
   try {
+    Logger.info('Starting places analysis', { lat, lng });
     const userLocation = new google.maps.LatLng(lat, lng);
     
     // First check for parks and green spaces
     const nearbyRequest: google.maps.places.PlaceSearchRequest = {
       location: { lat, lng },
-      radius: 1000,
+      radius: 300,
       type: 'park' // Start with parks
     };
 
     const nearbyParks = await new Promise<google.maps.places.PlaceResult[]>((resolve, reject) => {
       service.nearbySearch(nearbyRequest, async (results, status) => {
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+          Logger.info('Found parks', { count: results.length });
           // Also search for golf courses
           const golfRequest: google.maps.places.PlaceSearchRequest = {
             location: { lat, lng },
-            radius: 1000,
+            radius: 300,
             type: 'golf_course'
           };
           
@@ -148,10 +152,11 @@ export async function analyzePlacesData(
             resolve(results); // Fall back to just park results if golf search fails
           }
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+          Logger.info('No parks found, checking recreational areas');
           // Try other recreational areas
           const recRequest: google.maps.places.PlaceSearchRequest = {
             location: { lat, lng },
-            radius: 1000,
+            radius: 300,
             type: 'campground'
           };
           
@@ -163,6 +168,7 @@ export async function analyzePlacesData(
             }
           });
         } else {
+          Logger.error('Places API Error', { status });
           reject(new Error(`Places API Error: ${status}`));
         }
       });
@@ -190,6 +196,7 @@ export async function analyzePlacesData(
         result.confidence = 90;
         result.parkName = place.name;
         result.explanations.positive = [`You're at ${place.name || 'an outdoor recreational area'}.`];
+        Logger.info('Found grassy area', { name: place.name });
         break;
       }
 
@@ -203,6 +210,7 @@ export async function analyzePlacesData(
             if (status === google.maps.places.PlacesServiceStatus.OK && placeDetails) {
               resolve(placeDetails);
             } else {
+              Logger.error('Error getting place details', { status });
               reject(new Error(`Places API Error: ${status}`));
             }
           }
@@ -234,9 +242,11 @@ export async function analyzePlacesData(
             } else {
               result.explanations.positive = [`You're in ${details.name || 'a park'}.`];
             }
+            Logger.info('Inside grassy area', { name: details.name });
             break;
           } else if (isVeryClose) {
             result.explanations.negative = [`You're near ${details.name}, but not quite in a grassy area.`];
+            Logger.debug('Near but not in grassy area', { name: details.name });
           }
         }
       }
@@ -252,9 +262,9 @@ export async function analyzePlacesData(
         if (status === google.maps.places.PlacesServiceStatus.OK && results) {
           resolve(results);
         } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
-          // Being away from buildings alone isn't enough to confirm grass
           resolve([]);
         } else {
+          Logger.error('Error checking for buildings', { status });
           reject(new Error(`Places API Error: ${status}`));
         }
       });
@@ -311,7 +321,7 @@ export async function analyzePlacesData(
           
           if (isResidential) {
             hasDefiniteBuilding = true;
-            result.explanations.negative = ["You're in a residential area."];
+            result.explanations.negative = ["You're in a built out area."];
             break;
           } else if (place.types.some(type => definiteBuildings.includes(type))) {
             hasDefiniteBuilding = true;
@@ -356,19 +366,175 @@ export async function analyzePlacesData(
       }
     }
 
+    Logger.info('Analysis complete', {
+      isInPark: result.isInPark,
+      confidence: result.confidence,
+      parkName: result.parkName
+    });
+    
     return result;
 
   } catch (error) {
-    console.error('Error analyzing places:', error);
-    result.usedFallback = true;
+    Logger.error('Analysis failed', { error });
+    throw error;
+  }
+}
+
+// Location formatting utilities
+export interface FormattedLocation {
+  placeName?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  fullAddress: string;
+  url?: string;  // Google Maps URL for the location
+}
+
+export async function getHumanReadableLocation(
+  lat: number,
+  lng: number,
+  map: google.maps.Map
+): Promise<FormattedLocation> {
+  const geocoder = new google.maps.Geocoder();
+  
+  try {
+    // First check if we can get a grass analysis result
+    const grassAnalysis = await analyzePlacesData(lat, lng, map);
     
-    // More conservative fallback
-    if (map.getMapTypeId() === 'satellite' && map.getZoom()! >= 18) {
-      result.isInPark = false;
-      result.confidence = 0;
-      result.explanations.negative = ["We couldn't verify if you're in a grassy area."];
+    const response = await new Promise<google.maps.GeocoderResult[]>((resolve, reject) => {
+      geocoder.geocode(
+        { location: { lat, lng } },
+        (results, status) => {
+          if (status === google.maps.GeocoderStatus.OK && results) {
+            resolve(results);
+          } else {
+            reject(new Error(`Geocoding failed: ${status}`));
+          }
+        }
+      );
+    });
+
+    if (!response.length) {
+      return {
+        fullAddress: "Unknown location",
+        url: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+      };
     }
-    
-    return result;
+
+    const result = response[0];
+    const components = result.address_components;
+    const formattedLocation: FormattedLocation = {
+      fullAddress: result.formatted_address,
+      url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(result.formatted_address)}`
+    };
+
+    // If we have a valid grass result with high confidence, use that for the place name
+    if (grassAnalysis.isInPark && grassAnalysis.confidence >= 75) {
+      formattedLocation.placeName = grassAnalysis.parkName || "Natural Area";
+      if (grassAnalysis.parkName) {
+        formattedLocation.url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(grassAnalysis.parkName)}`;
+      }
+      
+      // Extract other components for context
+      for (const component of components) {
+        if (component.types.includes('locality')) {
+          formattedLocation.city = component.long_name;
+        }
+        if (component.types.includes('administrative_area_level_1')) {
+          formattedLocation.state = component.long_name;
+        }
+        if (component.types.includes('country')) {
+          formattedLocation.country = component.long_name;
+        }
+      }
+      
+      return formattedLocation;
+    }
+
+    // Check if location is residential
+    const isResidential = result.types.some(type => 
+      ['premise', 'subpremise', 'street_address', 'route', 'residential'].includes(type)
+    );
+
+    // Extract relevant components
+    let foundNeighborhood = false;
+    for (const component of components) {
+      // For residential addresses, prioritize neighborhood
+      if (isResidential && component.types.includes('neighborhood')) {
+        formattedLocation.placeName = component.long_name;
+        foundNeighborhood = true;
+      }
+      // For non-residential, use point of interest or establishment
+      else if (!isResidential && 
+        (component.types.includes('point_of_interest') || 
+         component.types.includes('establishment'))) {
+        formattedLocation.placeName = component.long_name;
+      }
+      // Get city
+      if (component.types.includes('locality')) {
+        formattedLocation.city = component.long_name;
+      }
+      // Get state/province
+      if (component.types.includes('administrative_area_level_1')) {
+        formattedLocation.state = component.long_name;
+      }
+      // Get country
+      if (component.types.includes('country')) {
+        formattedLocation.country = component.long_name;
+      }
+    }
+
+    // If residential but no neighborhood found, try to get sublocality or other area names
+    if (isResidential && !foundNeighborhood) {
+      for (const component of components) {
+        if (!formattedLocation.placeName) {
+          if (component.types.includes('sublocality')) {
+            formattedLocation.placeName = component.long_name;
+          } else if (component.types.includes('administrative_area_level_2')) {
+            formattedLocation.placeName = component.long_name;
+          }
+        }
+      }
+    }
+
+    // If still no place name for non-residential location, try nearby places
+    if (!isResidential && !formattedLocation.placeName) {
+      const service = new google.maps.places.PlacesService(map);
+      try {
+        const nearbyPlaces = await new Promise<google.maps.places.PlaceResult[]>((resolve, reject) => {
+          service.nearbySearch({
+            location: { lat, lng },
+            radius: 10, // Look for very nearby places
+            type: 'point_of_interest' // Focus on public places
+          }, (results, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && results) {
+              resolve(results);
+            } else if (status === google.maps.places.PlacesServiceStatus.ZERO_RESULTS) {
+              resolve([]);
+            } else {
+              reject(new Error(`Places API Error: ${status}`));
+            }
+          });
+        });
+
+        // Only use nearby place if it's not residential
+        if (nearbyPlaces.length > 0 && 
+            !nearbyPlaces[0].types?.some(type => 
+              ['premise', 'subpremise', 'street_address', 'route', 'residential'].includes(type)
+            )) {
+          formattedLocation.placeName = nearbyPlaces[0].name || undefined;
+        }
+      } catch (error) {
+        Logger.error('Error fetching nearby places', { error });
+      }
+    }
+
+    return formattedLocation;
+  } catch (error) {
+    Logger.error('Error getting human readable location', { error });
+    return {
+      fullAddress: "Location unavailable",
+      url: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
+    };
   }
 } 

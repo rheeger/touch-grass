@@ -12,6 +12,22 @@ const nextConfig = {
     NEXT_PUBLIC_APP_ENV: process.env.NEXT_PUBLIC_APP_ENV,
     NEXT_PUBLIC_PAYMASTER_RPC_URL: process.env.NEXT_PUBLIC_PAYMASTER_RPC_URL,
   },
+  // Optimize development experience
+  webpack: (config, { dev, isServer }) => {
+    // Reduce console noise in development
+    if (dev && !isServer) {
+      config.infrastructureLogging = {
+        level: 'error',
+      };
+    }
+    return config;
+  },
+  // Suppress specific development warnings
+  onDemandEntries: {
+    // Reduce the number of parallel compilation threads
+    maxInactiveAge: 60 * 60 * 1000,
+    pagesBufferLength: 2,
+  }
 };
 
 module.exports = nextConfig; 

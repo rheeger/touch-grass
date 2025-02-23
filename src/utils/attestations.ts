@@ -3,6 +3,7 @@ import { base } from "viem/chains";
 import { Interface } from "@ethersproject/abi";
 import type { UnsignedTransactionRequest } from "@privy-io/react-auth";
 import { getWalletAddress, type ActiveWallet } from "@/utils/walletManager";
+import Logger from '@/utils/logger';
 
 const EAS_CONTRACT_ADDRESS = "0x4200000000000000000000000000000000000021" as const;
 const EAS_GRAPHQL_API = "https://base.easscan.org/graphql" as const;
@@ -107,7 +108,7 @@ function extractTouchGrassStatus(mediaData: string): boolean {
     const data = JSON.parse(mediaData);
     return !!data.isTouchingGrass;
   } catch (error) {
-    console.error("Failed to parse touch grass media data:", error);
+    Logger.error('Failed to parse touch grass media data', { error });
     return false;
   }
 }
@@ -157,18 +158,18 @@ async function initializeSchemaUID(): Promise<void> {
     });
 
     const json = await response.json();
-    console.log("Schema search response:", json);
+    Logger.debug('Schema search response', { response: json });
 
     if (!json.data?.schemata?.length) {
       throw new Error("Schema not found. Please ensure you're using the correct schema UID.");
     }
   } catch (error) {
-    console.error("Failed to verify schema:", error);
+    Logger.error('Failed to verify schema', { error });
     throw error;
   }
 }
 
-initializeSchemaUID().catch(console.error);
+initializeSchemaUID().catch((error) => Logger.error('Schema initialization failed', { error }));
 
 interface AttestationFilter {
   schemaId?: { equals: `0x${string}` };
@@ -185,7 +186,7 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
     if (!SCHEMA_UID) {
       await initializeSchemaUID();
       if (!SCHEMA_UID) {
-        console.log("No schema found. Create an attestation to register the schema.");
+        Logger.info('No schema found. Create an attestation to register the schema.');
         return [];
       }
     }
@@ -226,7 +227,7 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
       }
     `;
 
-    console.log("Fetching attestations with:", {
+    Logger.debug('Fetching attestations', {
       endpoint: EAS_GRAPHQL_API,
       variables,
       address,
@@ -241,19 +242,19 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
     });
 
     const json = await response.json();
-    console.log("Raw attestation response:", json);
+    Logger.debug('Raw attestation response', { response: json });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     if (json.errors) {
-      console.error("GraphQL errors:", json.errors);
+      Logger.error('GraphQL errors', { errors: json.errors });
       throw new Error(`GraphQL Error: ${JSON.stringify(json.errors)}`);
     }
 
     if (!json.data?.attestations) {
-      console.warn("No attestations found in response:", json);
+      Logger.warn('No attestations found in response', { response: json });
       return [];
     }
 
@@ -271,7 +272,7 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
 
     return attestations;
   } catch (error) {
-    console.error("Failed to fetch attestations:", error);
+    Logger.error('Failed to fetch attestations', { error });
     throw error;
   }
 }
@@ -313,7 +314,7 @@ export function prepareGrassAttestation(
 
   const encodedFunction = easInterface.encodeFunctionData("attest", [attestationRequest]);
 
-  console.log('Preparing attestation with:', {
+  Logger.info('Preparing attestation', {
     contract: EAS_CONTRACT_ADDRESS,
     schema: SCHEMA_UID,
     recipient: walletAddress,
@@ -408,7 +409,11 @@ export async function fetchAttestationHistoryWithRetry(
   for (let i = 0; i < maxRetries; i++) {
     await new Promise<void>((resolve: () => void) => setTimeout(resolve, 3000 * (i + 1)));
     const history = await getAttestations(address);
-    console.log(`Retry ${i + 1}: Found ${history.length} attestations, expecting ${expectedCount}`);
+    Logger.debug('Fetching attestation history', { 
+      retry: i + 1, 
+      found: history.length, 
+      expected: expectedCount 
+    });
     if (history.length >= expectedCount) {
       return history;
     }

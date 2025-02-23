@@ -1,0 +1,106 @@
+.about-card {
+  @apply flex-shrink-0 w-full p-6 bg-black/80 backdrop-blur rounded-t-xl shadow-lg text-white font-mono flex flex-col;
+  height: 50vh;
+}
+
+.about-header {
+  @apply flex items-center justify-between mb-4;
+}
+
+.about-back-button {
+  @apply flex items-center space-x-2 text-xs text-white hover:text-white/80 transition-colors;
+}
+
+.about-title {
+  @apply text-xs font-medium text-white/60;
+}
+
+.about-content {
+  @apply flex-1 overflow-y-auto;
+}
+
+.about-section {
+  @apply space-y-6 pr-2;
+}
+
+.about-headline {
+  @apply text-2xl font-bold text-center mb-6 text-green-400;
+  text-shadow: 0 0 20px rgba(74, 222, 128, 0.2);
+}
+
+.about-description {
+  @apply text-base leading-relaxed;
+}
+
+.about-text {
+  @apply text-gray-200;
+}
+
+.about-step {
+  @apply bg-black/40 rounded-lg p-4 border transition-all duration-300;
+}
+
+.about-step-current {
+  @apply border-green-900/30;
+}
+
+.about-step-completed {
+  @apply border-green-500/30 bg-green-900/20;
+}
+
+.about-step-disabled {
+  @apply border-gray-800/30 opacity-50;
+}
+
+.about-mission {
+  @apply bg-black/40 rounded-lg p-4 border border-green-900/30;
+}
+
+.about-rules {
+  @apply bg-black/40 rounded-lg p-4 border border-green-900/30;
+}
+
+.about-rules ul {
+  @apply text-gray-200 list-none;
+}
+
+.about-motivation {
+  @apply bg-black/40 rounded-lg p-4 border border-green-900/30;
+}
+
+.about-cta {
+  @apply text-center;
+}
+
+/* Custom scrollbar for webkit browsers */
+.about-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.about-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.about-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+}
+
+.about-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Animations */
+@keyframes pulse-green {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.about-headline {
+  animation: pulse-green 3s ease-in-out infinite;
+} 

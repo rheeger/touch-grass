@@ -3,6 +3,8 @@ import { GoogleMap, LoadScript, Marker, OverlayView } from '@react-google-maps/a
 import { mapContainerStyle, MAP_ZOOM, getMapCenter, mapOptions, libraries, CIRCLE_SVG } from '@/config/mapConfig';
 import { type Attestation } from '@/utils/attestations';
 import { analyzeGrass } from '@/utils/grassDetection';
+import Logger from '@/utils/logger';
+import { LocationResult } from '@/utils/location';
 
 // Add styles for markers
 export const MARKER_STYLES = `
@@ -43,23 +45,25 @@ const groupOverlappingAttestations = (attestations: Attestation[]): { [key: stri
 };
 
 interface MapComponentProps {
-  location: { lat: number; lng: number } | null;
-  initialLocation: { lat: number; lng: number } | null;
-  manualLocation: { lat: number; lng: number } | null;
+  location: LocationResult | null;
+  initialLocation: LocationResult | null;
+  manualLocation: LocationResult | null;
   selectedAttestation: Attestation | null;
   attestations: Attestation[];
   isAnalyzing: boolean;
   isTouchingGrass: boolean;
   isViewingFeed?: boolean;
   feedAttestations?: Attestation[];
-  onSelectAttestation: (attestation: Attestation) => void;
-  onLocationChange: (location: { lat: number; lng: number }) => void;
+  onSelectAttestation: (attestation: Attestation | null) => void;
+  onLocationChange: (location: LocationResult) => void;
   onAnalysisStart: () => void;
   onAnalysisComplete: (result: { isTouchingGrass: boolean }) => void;
   onMapLoad?: (map: google.maps.Map) => void;
   showOnlyGrass?: boolean;
   currentUserAddress?: string;
+  selectedUserAddress?: string | null;
   onViewChange: (view: 'status' | 'menu' | 'history' | 'feed' | 'leaderboard') => void;
+  isAuthenticated: boolean;
 }
 
 const MapComponent: React.FC<MapComponentProps> = ({
@@ -79,7 +83,9 @@ const MapComponent: React.FC<MapComponentProps> = ({
   onMapLoad,
   showOnlyGrass = false,
   currentUserAddress = '',
+  selectedUserAddress = null,
   onViewChange,
+  isAuthenticated,
 }) => {
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -111,18 +117,22 @@ const MapComponent: React.FC<MapComponentProps> = ({
     onMapLoad?.(map);
   };
 
-  // Handle map clicks
   const handleMapClick = async (e: google.maps.MapMouseEvent) => {
     if (!e.latLng || !mapRef.current) return;
 
-    const newLocation = {
+    const newLocation: LocationResult = {
       lat: e.latLng.lat(),
-      lng: e.latLng.lng()
+      lng: e.latLng.lng(),
+      isPrecise: true // Manual clicks are considered precise
     };
 
     // Reset zoom and center map on clicked location
     mapRef.current.setZoom(MAP_ZOOM);
     mapRef.current.panTo(newLocation);
+
+    // Clear selected attestation and change view back to status
+    onSelectAttestation(null);
+    onViewChange('status');
 
     onLocationChange(newLocation);
     onAnalysisStart();
@@ -131,7 +141,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
       const result = await analyzeGrass(newLocation.lat, newLocation.lng, mapRef.current, false);
       onAnalysisComplete(result);
     } catch (error) {
-      console.error('Error analyzing location:', error);
+      Logger.error('Map analysis failed', { error });
       onAnalysisComplete({ isTouchingGrass: false });
     }
   };
@@ -147,11 +157,54 @@ const MapComponent: React.FC<MapComponentProps> = ({
 
   // Group overlapping attestations
   const groupedAttestations = useMemo(() => {
-    const attestationsToGroup = isViewingFeed ? feedAttestations : attestations;
-    return groupOverlappingAttestations(
-      attestationsToGroup.filter(attestation => !showOnlyGrass || attestation.isTouchingGrass)
+    // If viewing feed or not authenticated, use feedAttestations
+    let attestationsToShow = isViewingFeed ? feedAttestations : attestations;
+
+    // Filter by selected user if specified
+    if (selectedUserAddress) {
+      attestationsToShow = attestationsToShow.filter(attestation => 
+        attestation.attester.toLowerCase() === selectedUserAddress.toLowerCase()
+      );
+    }
+
+    // Filter based on showOnlyGrass setting
+    const filteredAttestations = attestationsToShow.filter(attestation => 
+      !showOnlyGrass || attestation.isTouchingGrass
     );
-  }, [isViewingFeed, feedAttestations, attestations, showOnlyGrass]);
+
+    return groupOverlappingAttestations(filteredAttestations);
+  }, [isViewingFeed, feedAttestations, attestations, showOnlyGrass, selectedUserAddress]);
+
+  // Center map on most recent attestation when user is selected
+  useEffect(() => {
+    if (selectedUserAddress && mapRef.current) {
+      const userAttestations = attestations.filter(
+        attestation => attestation.attester.toLowerCase() === selectedUserAddress.toLowerCase()
+      );
+      
+      if (userAttestations.length > 0) {
+        // Find most recent attestation (assuming attestations are sorted by timestamp)
+        const mostRecent = userAttestations[userAttestations.length - 1];
+        const center = getMapCenter(mostRecent.lat, mostRecent.lon);
+        mapRef.current.panTo(center);
+        mapRef.current.setZoom(MAP_ZOOM);
+        onSelectAttestation(mostRecent);
+      }
+    }
+  }, [selectedUserAddress, attestations, onSelectAttestation]);
+
+  // Add debug logging for visibility
+  useEffect(() => {
+    Logger.debug('Map visibility state', {
+      isViewingFeed,
+      attestationsCount: attestations.length,
+      feedAttestationsCount: feedAttestations.length,
+      visibleAttestationsCount: Object.values(groupedAttestations).flat().length,
+      isAuthenticated,
+      showOnlyGrass,
+      selectedUserAddress
+    });
+  }, [groupedAttestations, isViewingFeed, attestations, feedAttestations, isAuthenticated, showOnlyGrass, selectedUserAddress]);
 
   return (
     <>
@@ -204,7 +257,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
                 const baseZIndex = index * 2;
                 const isSelected = attestation.id === selectedAttestation?.id;
                 const finalZIndex = isSelected ? (group.length * 2) + 2 : baseZIndex;
-                const isUserAttestation = attestation.attester.toLowerCase() === currentUserAddress.toLowerCase();
+                const isUserAttestation = isAuthenticated && attestation.attester.toLowerCase() === currentUserAddress.toLowerCase();
 
                 return (
                   <Marker
@@ -225,7 +278,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
                     }}
                     onClick={() => {
                       onSelectAttestation(attestation);
-                      onViewChange(isUserAttestation ? 'history' : 'feed');
+                      onViewChange(isAuthenticated && isUserAttestation ? 'history' : 'feed');
                     }}
                     zIndex={finalZIndex}
                   />
