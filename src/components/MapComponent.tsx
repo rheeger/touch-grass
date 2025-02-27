@@ -62,8 +62,9 @@ interface MapComponentProps {
   showOnlyGrass?: boolean;
   currentUserAddress?: string;
   selectedUserAddress?: string | null;
-  onViewChange: (view: 'status' | 'menu' | 'history' | 'feed' | 'leaderboard') => void;
+  onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
   isAuthenticated: boolean;
+  currentView?: 'status' | 'history' | 'feed' | 'leaderboard' | 'about';
 }
 
 const MapComponent: React.FC<MapComponentProps> = ({
@@ -86,6 +87,7 @@ const MapComponent: React.FC<MapComponentProps> = ({
   selectedUserAddress = null,
   onViewChange,
   isAuthenticated,
+  currentView,
 }) => {
   const mapRef = useRef<google.maps.Map | null>(null);
 
@@ -205,6 +207,39 @@ const MapComponent: React.FC<MapComponentProps> = ({
       selectedUserAddress
     });
   }, [groupedAttestations, isViewingFeed, attestations, feedAttestations, isAuthenticated, showOnlyGrass, selectedUserAddress]);
+
+  // Zoom out to show all attestations when viewing feed or leaderboard
+  useEffect(() => {
+    if (mapRef.current && (currentView === 'feed' || currentView === 'leaderboard') && feedAttestations.length > 0) {
+      // If there's a selected attestation, don't override the zoom
+      if (selectedAttestation) return;
+
+      // Create bounds object to encompass all attestations
+      const bounds = new google.maps.LatLngBounds();
+      
+      // Add all attestation locations to bounds
+      const attestationsToShow = feedAttestations.filter(attestation => 
+        !showOnlyGrass || attestation.isTouchingGrass
+      );
+      
+      // Only proceed if we have attestations to show
+      if (attestationsToShow.length === 0) {
+        Logger.info(`No attestations to show in ${currentView} view with current filters`);
+        return;
+      }
+      
+      attestationsToShow.forEach(attestation => {
+        bounds.extend({ lat: attestation.lat, lng: attestation.lon });
+      });
+      
+      // Fit the map to these bounds with some padding
+      mapRef.current.fitBounds(bounds, 50); // 50px padding
+      
+      Logger.info(`Zoomed out to show all attestations in ${currentView} view`, {
+        attestationCount: attestationsToShow.length
+      });
+    }
+  }, [currentView, feedAttestations, showOnlyGrass, selectedAttestation]);
 
   return (
     <>

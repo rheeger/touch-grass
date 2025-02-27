@@ -61,7 +61,8 @@ export function Providers({ children }: PropsWithChildren) {
               showWalletLoginFirst: false,
             },
             defaultChain: base,
-            supportedChains: [base]
+            supportedChains: [base],
+            onboardingOnly: true
           }}
         >
           {children}

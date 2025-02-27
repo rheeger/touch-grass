@@ -8,8 +8,8 @@ interface LeaderboardCardProps {
   onBack: () => void;
   showOnlyGrass: boolean;
   onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
-  selectedUser: string | null;
   onUserSelect: (address: string | null) => void;
+  selectedUser: string | null;
 }
 
 interface LeaderboardEntry {
@@ -42,8 +42,8 @@ export function LeaderboardCard({
   onBack,
   showOnlyGrass,
   onShowOnlyGrassChange,
-  selectedUser,
   onUserSelect,
+  selectedUser
 }: LeaderboardCardProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});

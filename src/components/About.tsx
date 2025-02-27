@@ -5,16 +5,14 @@ import { useState, useEffect } from "react";
 import Logger from '@/utils/logger';
 
 interface AboutCardProps {
-  onBack: () => void;
   onConnect: () => void;
   isAuthenticated: boolean;
   walletAddress?: string;
   onDisconnect: () => void;
-  onViewChange: (view: 'status' | 'menu' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
+  onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
 }
 
 export function AboutCard({
-  onBack,
   onConnect,
   isAuthenticated,
   walletAddress,
@@ -77,7 +75,7 @@ export function AboutCard({
     <div className="menu-card">
       <div className="menu-header">
         <div className="flex items-center space-x-4">
-          <button onClick={onBack} className="menu-back-button">
+          <button onClick={() => onViewChange('status')} className="menu-back-button">
             <span>←</span>
             <span>BACK</span>
           </button>
@@ -103,8 +101,6 @@ export function AboutCard({
 
       <div className="menu-content">
         <div className="about-section">
-          <h1 className="about-headline">HOW TO TOUCH GRASS</h1>
-          
           <div className="about-description space-y-2">
             {/* Step 1: LOG IN */}
             <div className={`about-step ${isAuthenticated ? 'about-step-completed' : 'about-step-current'}`}>
@@ -142,17 +138,17 @@ export function AboutCard({
                   <>Use the same wallet and buy in on commit.wtf for $100 to join the 2025 challenge. Requires USDC on Base.</>
                 )}
               </p>
-              {!hasAntedUp && (<button
+              <button
                 onClick={() => window.open(getRegistrationUrl(), "_blank")}
-                disabled={!isAuthenticated || hasAntedUp}
+                disabled={hasAntedUp}
                 className={`w-full px-4 py-3 rounded-lg text-sm font-bold tracking-wide transition-colors ${
-                  !isAuthenticated || hasAntedUp
+                  hasAntedUp
                     ? 'bg-gray-600 cursor-not-allowed opacity-50' 
                     : 'bg-green-600 hover:bg-green-700'
                 }`}
               >
-                {hasAntedUp ? 'ANTED UP ✓' : 'ANTE UP $100'}
-              </button>)}
+                {hasAntedUp ? 'ANTED UP ✓' : 'ANTE UP $100 USDC'}
+              </button>
             </div>
 
             {/* Step 3: TOUCH GRASS */}
@@ -165,9 +161,9 @@ export function AboutCard({
               </p>
               <button
                 onClick={() => onViewChange('status')}
-                disabled={!hasAntedUp || isPastEndDate}
+                disabled={isPastEndDate}
                 className={`w-full px-4 py-3 rounded-lg text-sm font-bold tracking-wide transition-colors ${
-                  !hasAntedUp || isPastEndDate
+                  isPastEndDate
                     ? 'bg-gray-600 cursor-not-allowed opacity-50' 
                     : 'bg-green-600 hover:bg-green-700'
                 }`}

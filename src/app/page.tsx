@@ -36,10 +36,9 @@ export default function Home() {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [manualLocation, setManualLocation] = useState<LocationResult | null>(null);
   const [activeWallet, setActiveWallet] = useState<ActiveWallet | null>(null);
-  const [currentView, setCurrentView] = useState<'status' | 'menu' | 'history' | 'feed' | 'leaderboard' | 'about'>('status');
+  const [currentView, setCurrentView] = useState<'status' | 'history' | 'feed' | 'leaderboard' | 'about'>('status');
   const [isLocationTooFar, setIsLocationTooFar] = useState(false);
   const [showOnlyGrass, setShowOnlyGrass] = useState(false);
-  const [hasSeenAbout, setHasSeenAbout] = useState(false);
 
   // Consolidate initialization state
   const [initState, setInitState] = useState({
@@ -274,12 +273,7 @@ export default function Home() {
 
           const status = await getRegistrationStatus(walletAddr);
           
-          // Only show About page and update hasSeenAbout if not registered
-          if (!status.isRegistered) {
-            setCurrentView('about');
-            setHasSeenAbout(true);
-          }
-          
+          // Only show registration status, but don't change the view
           Logger.info('Registration status checked', { 
             walletAddress: walletAddr, 
             status 
@@ -291,14 +285,6 @@ export default function Home() {
     }
     checkRegistration();
   }, [authenticated, ready, activeWallet]);
-
-  // Show About page on first visit - separate effect
-  useEffect(() => {
-    if (!hasSeenAbout && !authenticated) {
-      setCurrentView('about');
-      setHasSeenAbout(true);
-    }
-  }, [hasSeenAbout, authenticated]);
 
   const handleCreateAttestation = async () => {
     if (!location) {
@@ -459,7 +445,7 @@ export default function Home() {
           manualLocation={manualLocation}
           selectedAttestation={selectedAttestation}
           attestations={
-            authenticated && (currentView === 'status' || currentView === 'history' || currentView === 'menu') 
+            authenticated && (currentView === 'status' || currentView === 'history') 
               ? attestations 
               : allAttestations
           }
@@ -495,6 +481,7 @@ export default function Home() {
           showOnlyGrass={showOnlyGrass}
           onViewChange={setCurrentView}
           isAuthenticated={authenticated}
+          currentView={currentView}
         />
       </div>
 
@@ -503,7 +490,6 @@ export default function Home() {
         <div className="max-w-3xl mx-auto">
           {currentView === 'about' ? (
             <AboutCard
-              onBack={() => setCurrentView('status')}
               onConnect={login}
               isAuthenticated={authenticated}
               walletAddress={activeWallet?.address}

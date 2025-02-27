@@ -1,10 +1,9 @@
 'use client';
 
 import '@/styles/status.css';
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { type Attestation } from '@/utils/attestations';
 import confetti from 'canvas-confetti';
-import { MenuCard } from './MenuCard';
 import { FeedCard } from './FeedCard';
 import { HistoryCard } from './HistoryCard';
 import { LeaderboardCard } from './LeaderboardCard';
@@ -37,8 +36,8 @@ export interface StatusCardsProps {
   attestations: Attestation[];
   allAttestations: Attestation[];
   isLoadingHistory: boolean;
-  currentView: 'status' | 'menu' | 'history' | 'feed' | 'leaderboard' | 'about';
-  onViewChange: (view: 'status' | 'menu' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
+  currentView: 'status' | 'history' | 'feed' | 'leaderboard' | 'about';
+  onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
   isLocationTooFar: boolean;
   initialLocation: LocationResult | null;
   onMapClick: (event: google.maps.MapMouseEvent) => void;
@@ -141,15 +140,6 @@ export function StatusCards({
     }
   }, [isCreatingAttestation, showSuccessAnimation]);
 
-  const handleBack = () => {
-    if (['feed', 'history', 'leaderboard', 'about'].includes(currentView)) {
-      onViewChange('menu');
-    } else if (currentView === 'menu') {
-      onViewChange('status');
-    }
-    onSelectAttestation(null);
-  };
-
   const renderLocationTooltip = () => {
     if (!location?.isPrecise) {
       return (
@@ -173,10 +163,28 @@ export function StatusCards({
             <div className="status-header">
               <div className="flex items-center space-x-4">
                 <button
-                  onClick={() => onViewChange('menu')}
+                  onClick={() => onViewChange('about')}
                   className="status-menu-button"
                 >
-                  <span>MENU</span>
+                  <span>ABOUT</span>
+                </button>
+                <button
+                  onClick={() => onViewChange('leaderboard')}
+                  className="status-menu-button"
+                >
+                  <span>LEADERBOARD</span>
+                </button>
+                <button
+                  onClick={() => onViewChange('feed')}
+                  className="status-menu-button"
+                >
+                  <span>FEED</span>
+                </button>
+                <button
+                  onClick={() => onViewChange('history')}
+                  className="status-menu-button"
+                >
+                  <span>HISTORY</span>
                 </button>
               </div>
               <div className="wallet-info">
@@ -376,24 +384,8 @@ export function StatusCards({
           </div>
         )}
 
-        {currentView === 'menu' && (
-          <MenuCard
-            onSelectFeed={() => onViewChange('feed')}
-            onSelectHistory={() => onViewChange('history')}
-            onSelectLeaderboard={() => onViewChange('leaderboard')}
-            onSelectAbout={() => onViewChange('about')}
-            onBack={handleBack}
-            attestationCount={attestations.length}
-            walletAddress={walletAddress}
-            onDisconnect={onDisconnect}
-            onConnect={onConnect}
-            isAuthenticated={isAuthenticated}
-          />
-        )}
-
         {currentView === 'about' && (
           <AboutCard
-            onBack={handleBack}
             onConnect={onConnect}
             isAuthenticated={isAuthenticated}
             walletAddress={walletAddress}
@@ -408,7 +400,7 @@ export function StatusCards({
             selectedAttestation={selectedAttestation}
             attestations={attestations}
             currentLocation={location}
-            onBack={handleBack}
+            onBack={() => onViewChange('status')}
             isLoadingHistory={isLoadingHistory}
             showOnlyGrass={showOnlyGrass}
             onShowOnlyGrassChange={onShowOnlyGrassChange}
@@ -423,9 +415,11 @@ export function StatusCards({
             currentLocation={location}
             onSelectAttestation={onSelectAttestation}
             selectedAttestation={selectedAttestation}
-            onBack={handleBack}
+            onBack={() => onViewChange('status')}
             showOnlyGrass={showOnlyGrass}
             onShowOnlyGrassChange={onShowOnlyGrassChange}
+            selectedUser={selectedUser}
+            onUserSelect={onUserSelect}
           />
         )}
 
@@ -433,7 +427,7 @@ export function StatusCards({
           <LeaderboardCard
             attestations={allAttestations}
             onBack={() => {
-              handleBack();
+              onViewChange('status');
               onUserSelect(null);
             }}
             showOnlyGrass={showOnlyGrass}

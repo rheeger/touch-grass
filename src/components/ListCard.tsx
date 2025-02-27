@@ -4,34 +4,30 @@ import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 import '@/styles/listcard.css';
 
-interface ListCardProps {
-  onSelectAttestation: (attestation: Attestation) => void;
-  selectedAttestation: Attestation | null;
+export interface ListCardProps {
   attestations: Attestation[];
   currentLocation: { lat: number; lng: number } | null;
+  onSelectAttestation: (attestation: Attestation | null) => void;
+  selectedAttestation: Attestation | null;
   onBack: () => void;
-  isLoadingList?: boolean;
   showOnlyGrass: boolean;
   onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
-  isAuthenticated?: boolean;
-  onConnect?: () => void;
   title: string;
   showAttesterInfo?: boolean;
+  isLoadingList?: boolean;
 }
 
 export function ListCard({
-  onSelectAttestation,
-  selectedAttestation,
   attestations,
   currentLocation,
+  onSelectAttestation,
+  selectedAttestation,
   onBack,
-  isLoadingList,
   showOnlyGrass,
   onShowOnlyGrassChange,
-  isAuthenticated,
-  onConnect,
   title,
   showAttesterInfo = false,
+  isLoadingList = false
 }: ListCardProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const [formattedLocations, setFormattedLocations] = useState<{ [key: string]: FormattedLocation }>({});
@@ -165,26 +161,24 @@ export function ListCard({
           </button>
           <span className="list-title">{title}</span>
         </div>
-        <div className="flex items-center space-x-4">
-          <div className="view-toggle">
-            <button
-              onClick={() => onShowOnlyGrassChange(false)}
-              className={`view-toggle-button ${
-                !showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
-              }`}
-            >
-              ALL
-            </button>
-            <button
-              onClick={() => onShowOnlyGrassChange(true)}
-              className={`view-toggle-button ${
-                showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
-              }`}
-            >
-              GRASS
-            </button>
-          </div>
-          {isLoadingList && <span className="list-loading">Loading...</span>}
+        <div className="view-toggle">
+          <button
+            onClick={() => onShowOnlyGrassChange(false)}
+            className={`view-toggle-button ${
+              !showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
+            }`}
+          >
+            ALL
+          </button>
+          <button
+            onClick={() => onShowOnlyGrassChange(true)}
+            className={`view-toggle-button ${
+              showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
+            }`}
+          >
+            GRASS
+          </button>
+          {isLoadingList && <span className="list-loading ml-2">Loading...</span>}
         </div>
       </div>
 
@@ -192,14 +186,6 @@ export function ListCard({
         {filteredAttestations.length === 0 ? (
           <div className="list-empty flex flex-col items-center">
             <div>No attestations yet</div>
-            {!isAuthenticated && onConnect && (
-              <button
-                onClick={onConnect}
-                className="menu-wallet-connect mt-2"
-              >
-                LOG IN
-              </button>
-            )}
           </div>
         ) : (
           <div className="list-items">
@@ -268,7 +254,7 @@ export function ListCard({
                   </div>
                   <div className="list-item-footer">
                     <div className="list-item-byline">
-                      {(!isAuthenticated && !showAttesterInfo) ? (
+                      {(!showAttesterInfo) ? (
                         <>by Anonymous</>
                       ) : (
                         <>by {formatAddressOrEns(attestation.attester, ensNames[attestation.attester])}</>
