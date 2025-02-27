@@ -1,6 +1,6 @@
 import { type Attestation } from '@/utils/attestations';
 import { getRelativeTimeString, calculateDistance, formatDistance, getHumanReadableLocation, type FormattedLocation } from '@/utils/places';
-import { useEffect, useRef, useMemo, useCallback, useState } from 'react';
+import { useEffect, useRef, useMemo, useCallback, useState, ReactNode } from 'react';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
 import '@/styles/listcard.css';
 
@@ -15,6 +15,7 @@ export interface ListCardProps {
   title: string;
   showAttesterInfo?: boolean;
   isLoadingList?: boolean;
+  customHeader?: ReactNode;
 }
 
 export function ListCard({
@@ -27,7 +28,8 @@ export function ListCard({
   onShowOnlyGrassChange,
   title,
   showAttesterInfo = false,
-  isLoadingList = false
+  isLoadingList = false,
+  customHeader
 }: ListCardProps) {
   const selectedItemRef = useRef<HTMLDivElement>(null);
   const [formattedLocations, setFormattedLocations] = useState<{ [key: string]: FormattedLocation }>({});
@@ -150,37 +152,39 @@ export function ListCard({
 
   return (
     <div className="list-card h-[50vh]">
-      <div className="list-header">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onBack}
-            className="list-back-button"
-          >
-            <span>←</span>
-            <span>BACK</span>
-          </button>
-          <span className="list-title">{title}</span>
+      {customHeader || (
+        <div className="list-header">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onBack}
+              className="list-back-button"
+            >
+              <span>←</span>
+              <span>BACK</span>
+            </button>
+            <span className="list-title">{title}</span>
+          </div>
+          <div className="view-toggle">
+            <button
+              onClick={() => onShowOnlyGrassChange(false)}
+              className={`view-toggle-button ${
+                !showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
+              }`}
+            >
+              ALL
+            </button>
+            <button
+              onClick={() => onShowOnlyGrassChange(true)}
+              className={`view-toggle-button ${
+                showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
+              }`}
+            >
+              GRASS
+            </button>
+            {isLoadingList && <span className="list-loading ml-2">Loading...</span>}
+          </div>
         </div>
-        <div className="view-toggle">
-          <button
-            onClick={() => onShowOnlyGrassChange(false)}
-            className={`view-toggle-button ${
-              !showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
-            }`}
-          >
-            ALL
-          </button>
-          <button
-            onClick={() => onShowOnlyGrassChange(true)}
-            className={`view-toggle-button ${
-              showOnlyGrass ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
-            }`}
-          >
-            GRASS
-          </button>
-          {isLoadingList && <span className="list-loading ml-2">Loading...</span>}
-        </div>
-      </div>
+      )}
 
       <div className="list-content">
         {filteredAttestations.length === 0 ? (

@@ -5,7 +5,6 @@ import React, { useState, useEffect } from 'react';
 import { type Attestation } from '@/utils/attestations';
 import confetti from 'canvas-confetti';
 import { FeedCard } from './FeedCard';
-import { HistoryCard } from './HistoryCard';
 import { LeaderboardCard } from './LeaderboardCard';
 import { AboutCard } from './About';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
@@ -66,9 +65,7 @@ export function StatusCards({
   isCreatingAttestation,
   selectedAttestation,
   onSelectAttestation,
-  attestations,
   allAttestations,
-  isLoadingHistory,
   currentView,
   onViewChange,
   isLocationTooFar,
@@ -180,12 +177,6 @@ export function StatusCards({
                   className="status-menu-button"
                 >
                   <span>FEED</span>
-                </button>
-                <button
-                  onClick={() => onViewChange('history')}
-                  className="status-menu-button"
-                >
-                  <span>HISTORY</span>
                 </button>
               </div>
               <div className="wallet-info">
@@ -404,21 +395,6 @@ export function StatusCards({
           />
         )}
 
-        {currentView === 'history' && (
-          <HistoryCard
-            onSelectAttestation={onSelectAttestation}
-            selectedAttestation={selectedAttestation}
-            attestations={attestations}
-            currentLocation={location}
-            onBack={() => onViewChange('status')}
-            isLoadingHistory={isLoadingHistory}
-            showOnlyGrass={showOnlyGrass}
-            onShowOnlyGrassChange={onShowOnlyGrassChange}
-            isAuthenticated={isAuthenticated}
-            onConnect={onConnect}
-          />
-        )}
-
         {currentView === 'feed' && (
           <FeedCard
             attestations={allAttestations}
@@ -430,6 +406,8 @@ export function StatusCards({
             onShowOnlyGrassChange={onShowOnlyGrassChange}
             selectedUser={selectedUser}
             onUserSelect={onUserSelect}
+            isAuthenticated={isAuthenticated}
+            userAddress={walletAddress}
           />
         )}
 
