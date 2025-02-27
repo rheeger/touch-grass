@@ -1,6 +1,6 @@
 import { type Attestation } from '@/utils/attestations';
 import { ListCard } from './ListCard';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 
 interface FeedCardProps {
   attestations: Attestation[];
@@ -19,16 +19,6 @@ interface FeedCardProps {
 export function FeedCard(props: FeedCardProps) {
   const [showJustMe, setShowJustMe] = useState(false);
   
-  // Debug logging to verify authentication and address
-  useEffect(() => {
-    console.log('FeedCard auth state:', {
-      isAuthenticated: props.isAuthenticated,
-      userAddress: props.userAddress,
-      showJustMe,
-      attestationsCount: props.attestations.length
-    });
-  }, [props.isAuthenticated, props.userAddress, showJustMe, props.attestations.length]);
-  
   // Filter attestations based on both filters
   const filteredAttestations = props.attestations.filter(attestation => {
     // Apply grass filter if enabled
@@ -46,33 +36,6 @@ export function FeedCard(props: FeedCardProps) {
     
     return passesGrassFilter && passesJustMeFilter;
   });
-  
-  // Debug logging for filtered results
-  useEffect(() => {
-    if (showJustMe) {
-      console.log('JUST ME filter results:', {
-        totalAttestations: props.attestations.length,
-        filteredCount: filteredAttestations.length,
-        userAddress: props.userAddress
-      });
-      
-      // Log the first few attestations to check their attester values
-      if (props.attestations.length > 0) {
-        console.log('Sample attestation attesters:', 
-          props.attestations.slice(0, 3).map(a => ({
-            attester: a.attester,
-            matches: props.userAddress ? a.attester.toLowerCase() === props.userAddress.toLowerCase() : false
-          }))
-        );
-      }
-    }
-  }, [filteredAttestations.length, showJustMe, props.attestations, props.userAddress]);
-
-  // Toggle the JUST ME filter
-  const toggleJustMe = () => {
-    console.log('Toggling JUST ME filter from', showJustMe, 'to', !showJustMe);
-    setShowJustMe(!showJustMe);
-  };
 
   // Custom render function for the ListCard header to add the JUST ME button
   const renderCustomHeader = () => (
@@ -105,14 +68,14 @@ export function FeedCard(props: FeedCardProps) {
           GRASS
         </button>
         <button
-          onClick={toggleJustMe}
+          onClick={() => setShowJustMe(!showJustMe)}
           className={`view-toggle-button ${
             showJustMe ? 'view-toggle-button-active' : 'view-toggle-button-inactive'
           }`}
           disabled={!props.isAuthenticated}
           title={!props.isAuthenticated ? "Log in to see your past attestation history." : ""}
         >
-          MINE
+          JUST ME
         </button>
       </div>
     </div>
