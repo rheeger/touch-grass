@@ -11,7 +11,6 @@ interface FeedCardProps {
   onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
   selectedUser: string | null;
   onUserSelect: (address: string | null) => void;
-  onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
 }
 
 export function FeedCard(props: FeedCardProps) {
@@ -20,7 +19,6 @@ export function FeedCard(props: FeedCardProps) {
       {...props}
       title="FEED"
       showAttesterInfo={true}
-      onBack={() => props.onViewChange('status')}
     />
   );
 } 

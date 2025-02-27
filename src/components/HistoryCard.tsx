@@ -12,7 +12,6 @@ interface HistoryCardProps {
   onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
   isAuthenticated: boolean;
   onConnect: () => void;
-  onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
 }
 
 export function HistoryCard(props: HistoryCardProps) {
@@ -21,7 +20,6 @@ export function HistoryCard(props: HistoryCardProps) {
       {...props}
       title="HISTORY"
       isLoadingList={props.isLoadingHistory}
-      onBack={() => props.onViewChange('status')}
     />
   );
 } 
