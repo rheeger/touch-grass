@@ -17,7 +17,11 @@
 
 /* Wallet Info Styles */
 .wallet-info {
-  @apply flex items-center space-x-2;
+  @apply flex items-center;
+}
+
+.wallet-info button {
+  @apply text-xs hover:opacity-80 transition-colors;
 }
 
 .wallet-address {

@@ -20,7 +20,7 @@
 }
 
 .about-section {
-  @apply space-y-6 pr-2;
+  @apply space-y-6;
 }
 
 .about-headline {
@@ -29,7 +29,7 @@
 }
 
 .about-description {
-  @apply text-base leading-relaxed;
+  @apply text-base leading-relaxed w-full;
 }
 
 .about-text {
@@ -37,7 +37,7 @@
 }
 
 .about-step {
-  @apply bg-black/40 rounded-lg p-4 border transition-all duration-300;
+  @apply bg-black/40 rounded-lg p-4 border transition-all duration-300 w-full;
 }
 
 .about-step-current {

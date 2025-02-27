@@ -84,6 +84,7 @@ export function StatusCards({
   const [ensName, setEnsName] = useState<string | null>(null);
   const [formattedLocation, setFormattedLocation] = useState<FormattedLocation | null>(null);
   const [hasAntedUp, setHasAntedUp] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     if (walletAddress) {
@@ -189,18 +190,27 @@ export function StatusCards({
               </div>
               <div className="wallet-info">
                 {isAuthenticated ? (
-                  <>
-                    <span className="wallet-address">
-                      {!hasAntedUp && <RegistrationWarning className="mr-2" />}
-                      {formatAddressOrEns(walletAddress || '', ensName)}
-                    </span>
-                    <button
-                      onClick={onDisconnect}
-                      className="wallet-disconnect"
-                    >
-                      LOG OUT
-                    </button>
-                  </>
+                  <button 
+                    onClick={() => {
+                      if (showLogoutConfirm) {
+                        onDisconnect();
+                        setShowLogoutConfirm(false);
+                      } else {
+                        setShowLogoutConfirm(true);
+                      }
+                    }}
+                    onMouseLeave={() => setShowLogoutConfirm(false)}
+                    className={`text-xs transition-colors ${showLogoutConfirm ? 'text-red-400 font-bold' : ''}`}
+                  >
+                    {showLogoutConfirm ? (
+                      "LOG OUT?"
+                    ) : (
+                      <>
+                        {!hasAntedUp && <RegistrationWarning className="mr-2" />}
+                        {formatAddressOrEns(walletAddress || '', ensName)}
+                      </>
+                    )}
+                  </button>
                 ) : (
                   <button
                     onClick={onConnect}

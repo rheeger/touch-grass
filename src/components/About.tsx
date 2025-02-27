@@ -22,6 +22,7 @@ export function AboutCard({
   const [ensName, setEnsName] = useState<string | null>(null);
   const [hasAntedUp, setHasAntedUp] = useState(false);
   const [registrationDate, setRegistrationDate] = useState<Date | undefined>();
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Add date check logic
   const now = new Date();
@@ -83,14 +84,24 @@ export function AboutCard({
         </div>
         <div className="menu-wallet">
           {isAuthenticated ? (
-            <>
-              <span className="menu-wallet-address">
-                {formatAddressOrEns(walletAddress || "", ensName)}
-              </span>
-              <button onClick={onDisconnect} className="menu-wallet-disconnect">
-                LOG OUT
-              </button>
-            </>
+            <button 
+              onClick={() => {
+                if (showLogoutConfirm) {
+                  onDisconnect();
+                  setShowLogoutConfirm(false);
+                } else {
+                  setShowLogoutConfirm(true);
+                }
+              }}
+              onMouseLeave={() => setShowLogoutConfirm(false)}
+              className={`text-xs transition-colors ${showLogoutConfirm ? 'text-red-400 font-bold' : ''}`}
+            >
+              {showLogoutConfirm ? (
+                "LOG OUT?"
+              ) : (
+                formatAddressOrEns(walletAddress || "", ensName)
+              )}
+            </button>
           ) : (
             <button onClick={onConnect} className="menu-wallet-connect">
               LOG IN
@@ -101,7 +112,7 @@ export function AboutCard({
 
       <div className="menu-content">
         <div className="about-section">
-          <div className="about-description space-y-2">
+          <div className="about-description space-y-2 w-full">
             {/* Step 1: LOG IN */}
             <div className={`about-step ${isAuthenticated ? 'about-step-completed' : 'about-step-current'}`}>
               <div className="flex items-center justify-between mb-3">
