@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "cloudsql-proxy": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "source ~/.zshrc && INSTANCE_CONNECTION_NAME=$(gcloud sql instances describe endaoment-prod --format='value(connectionName)') && docker run --rm -i -p 127.0.0.1:5432:5432 gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.15.1 --address 0.0.0.0 --port 5432 $INSTANCE_CONNECTION_NAME"
+      ]
+    },
+    "cloudsql-client": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "source ~/.zshrc && sleep 5 && DB_USER=$(echo $DB_CREDENTIALS | jq -r '.DB_USER') && DB_PASSWORD=$(echo $DB_CREDENTIALS | jq -r '.DB_PASSWORD') && DB_NAME=$(echo $DB_CREDENTIALS | jq -r '.DB_NAME') && docker run --rm -i --network=host postgres:14 psql \"postgresql://${DB_USER}:${DB_PASSWORD}@127.0.0.1:5432/${DB_NAME}\""
+      ]
+    }
+  }
+} 

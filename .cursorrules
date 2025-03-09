@@ -1,0 +1,544 @@
+{
+  "version": "1.0.0",
+  "projectName": "touch-grass",
+  "description": "Touch Grass Project - A web3 application for location-based attestations through Base blockchain, integrating Google Maps, Ethereum Attestation Service, and biometric verification.",
+  
+  "typescript": {
+    "description": "TypeScript Configuration",
+    "enforceRules": {
+      "strict": true,
+      "useExplicitReturnTypes": true,
+      "requireExplicitParameterTypes": true,
+      "preferFunctionalComponents": true,
+      "preferConst": true,
+      "maxLineLength": 100,
+      "indentSize": 2
+    },
+    
+    "naming": {
+      "description": "Naming conventions",
+      "interfaces": "PascalCase",
+      "types": "PascalCase",
+      "components": "PascalCase",
+      "functions": "camelCase",
+      "variables": "camelCase",
+      "constants": "UPPER_CASE",
+      "props": "camelCase",
+      "hooks": "use[Name]",
+      "attestation": "attestation"
+    },
+    
+    "fileStructure": {
+      "description": "File structure conventions",
+      "components": "src/components",
+      "hooks": "src/hooks",
+      "utils": "src/utils",
+      "types": "src/types",
+      "app": "src/app",
+      "config": "src/config",
+      "styles": "src/styles"
+    },
+    
+    "importOrdering": {
+      "description": "Import ordering",
+      "order": [
+        "react",
+        "next",
+        "external libraries",
+        "@/components",
+        "@/hooks",
+        "@/utils",
+        "@/types",
+        "@/config",
+        "@/styles",
+        "relative imports"
+      ],
+      "examples": {
+        "correct": [
+          "import React, { useEffect, useState } from 'react';",
+          "import { useRouter } from 'next/router';",
+          "import { SchemaEncoder } from '@ethereum-attestation-service/eas-sdk';",
+          "import MapComponent from '@/components/MapComponent';",
+          "import { useWallet } from '@/hooks/useWallet';",
+          "import { createAttestation } from '@/utils/attestations';",
+          "import type { Attestation } from '@/types/attestation';",
+          "import { mapOptions } from '@/config/mapConfig';",
+          "import '@/styles/map.css';"
+        ],
+        "incorrect": [
+          "import '@/styles/map.css';",
+          "import { createAttestation } from '@/utils/attestations';",
+          "import React, { useEffect, useState } from 'react';",
+          "import { SchemaEncoder } from '@ethereum-attestation-service/eas-sdk';",
+          "import { useRouter } from 'next/router';"
+        ]
+      }
+    }
+  },
+  
+  "react": {
+    "description": "React & Next.js Best Practices",
+    "componentStructure": {
+      "propsAtTop": true,
+      "hooksBeforeEffects": true,
+      "effectsBeforeCallbacks": true,
+      "renderLogicAtBottom": true,
+      "examples": {
+        "correct": [
+          "interface ComponentProps {",
+          "  data: string;",
+          "}",
+          "",
+          "const Component: React.FC<ComponentProps> = ({ data }) => {",
+          "  // State hooks",
+          "  const [state, setState] = useState<string>('');",
+          "",
+          "  // Effects",
+          "  useEffect(() => {",
+          "    // Effect logic",
+          "  }, [data]);",
+          "",
+          "  // Event handlers and callbacks",
+          "  const handleClick = () => {",
+          "    // Handler logic",
+          "  };",
+          "",
+          "  // Render logic",
+          "  return (",
+          "    <div onClick={handleClick}>{state}</div>",
+          "  );",
+          "};"
+        ]
+      }
+    },
+    
+    "hooks": {
+      "preferMemo": true,
+      "preferCallback": true,
+      "useEffectDependencies": "explicit",
+      "examples": {
+        "correct": [
+          "// Memoize expensive calculations",
+          "const memoizedValue = useMemo(() => computeExpensiveValue(a, b), [a, b]);",
+          "",
+          "// Memoize callbacks to prevent unnecessary re-renders",
+          "const memoizedCallback = useCallback(() => {",
+          "  doSomething(a, b);",
+          "}, [a, b]);",
+          "",
+          "// Explicit dependencies in useEffect",
+          "useEffect(() => {",
+          "  fetchData(userId);",
+          "}, [userId]);"
+        ],
+        "incorrect": [
+          "// Missing dependencies",
+          "useEffect(() => {",
+          "  fetchData(userId);",
+          "}, []);",
+          "",
+          "// Unnecessary re-creation of functions",
+          "const handleClick = () => {",
+          "  doSomething(a, b);",
+          "};"
+        ]
+      }
+    },
+    
+    "stateManagement": {
+      "preferReducer": "forComplexState",
+      "avoidRedundantState": true,
+      "useContextForGlobalData": true,
+      "attestationState": "centralizeInContext"
+    },
+    
+    "performance": {
+      "memoizeExpensiveComponents": true,
+      "avoidUnnecessaryRenders": true,
+      "optimizeListRendering": true,
+      "lazyLoadMapComponents": true,
+      "limitAttestationQueries": true
+    },
+    
+    "nextjs": {
+      "useAppRouter": true,
+      "serverComponentsWhen": "forDataFetching",
+      "preferStaticGeneration": true,
+      "useFontOptimization": true,
+      "useImageOptimization": true
+    }
+  },
+  
+  "componentPatterns": {
+    "description": "Component Patterns",
+    "preferSmallComponents": true,
+    "maxComponentSize": 300,
+    "separateLogicFromUI": true,
+    "requirePropTypes": true,
+    "requireDefaultProps": true,
+    "requireDocumentation": true,
+    
+    "propsPassing": {
+      "avoidPropDrilling": true,
+      "useSpread": "onlyWhenNecessary",
+      "propDestructuring": true
+    },
+    
+    "specificComponentRules": {
+      "mapComponent": {
+        "separateMarkerLogic": true,
+        "useMarkerClustering": true,
+        "optimizeOverlayRendering": true,
+        "limitMarkersPerView": 100
+      },
+      "attestationCards": {
+        "useSkeleton": true,
+        "implementVirtualization": true,
+        "optimizeReRendering": true
+      }
+    }
+  },
+  
+  "styling": {
+    "description": "Styling Conventions",
+    "approach": "tailwind",
+    "preferUtilityClasses": true,
+    "responsiveDesign": "mobile-first",
+    "cssVariables": {
+      "useForThemes": true,
+      "useForColors": true,
+      "useForSpacing": true
+    },
+    "tailwind": {
+      "extendTheme": true,
+      "useCustomClasses": true,
+      "avoidInlineStyles": true,
+      "preferComposition": true,
+      "examples": {
+        "correct": [
+          "<div className=\"flex items-center justify-between p-4 bg-background text-foreground rounded-lg shadow-md\">",
+          "  <h2 className=\"text-xl font-bold\">Title</h2>",
+          "  <button className=\"px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded\">",
+          "    Click Me",
+          "  </button>",
+          "</div>"
+        ],
+        "incorrect": [
+          "<div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#fff' }}>",
+          "  <h2 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>Title</h2>",
+          "  <button style={{ padding: '0.5rem 1rem', backgroundColor: 'blue', color: 'white', borderRadius: '0.25rem' }}>",
+          "    Click Me",
+          "  </button>",
+          "</div>"
+        ]
+      }
+    },
+    
+    "mapStyles": {
+      "useConsistentMarkers": true,
+      "animateUserLocation": true,
+      "useClusteringForDensity": true
+    }
+  },
+  
+  "codeQuality": {
+    "description": "Code Quality Rules",
+    "documentationRequirements": {
+      "requireComments": "forComplexLogic",
+      "documentationStyle": "JSDoc",
+      "maxFunctionComplexity": 15,
+      "maxFunctionParameters": 4,
+      "maxFunctionSize": 50,
+      "maxNestedDepth": 3
+    },
+    
+    "errorHandling": {
+      "useTypedErrors": true,
+      "requireErrorLogging": true,
+      "avoidTryCatchInComponents": true,
+      "preferErrorBoundaries": true,
+      "useFallbacks": true,
+      "blockchainInteractions": {
+        "handleTransactionFailures": true,
+        "provideUserFeedback": true,
+        "implementRetryMechanisms": true
+      }
+    },
+    
+    "logging": {
+      "useStructuredLogging": true,
+      "logPriority": ["error", "warn", "info", "debug"],
+      "includeContext": true,
+      "includeTimestamp": true,
+      "examples": {
+        "correct": [
+          "import Logger from '@/utils/logger';",
+          "",
+          "try {",
+          "  await createAttestation(wallet, location, isTouchingGrass);",
+          "  Logger.info('Attestation created successfully', { location, isTouchingGrass });",
+          "} catch (error) {",
+          "  Logger.error('Failed to create attestation', { error, location });"
+        ]
+      }
+    }
+  },
+  
+  "testing": {
+    "description": "Testing Standards",
+    "requireTests": true,
+    "testCoverage": {
+      "minimum": 70,
+      "target": 85
+    },
+    "unitTestsFor": [
+      "utils",
+      "hooks",
+      "reducers",
+      "components"
+    ],
+    "integrationTestsFor": [
+      "pages",
+      "features",
+      "forms"
+    ],
+    "e2eTestsFor": [
+      "criticalUserFlows",
+      "authentication",
+      "attestationCreation"
+    ],
+    "testNaming": "descriptive",
+    "testPattern": "[filename].test.ts",
+    "mapTesting": {
+      "mockGoogleMapsAPI": true,
+      "simulateGeolocation": true,
+      "testMarkerRendering": true
+    },
+    "web3Testing": {
+      "mockProviders": true,
+      "simulateTransactions": true,
+      "testWalletConnections": true
+    }
+  },
+  
+  "performance": {
+    "description": "Performance Standards",
+    "bundleSize": {
+      "maxInitialLoad": "150kb",
+      "preferCodeSplitting": true,
+      "lazyLoadComponents": true
+    },
+    "rendering": {
+      "minimizeJank": true,
+      "optimizeAnimations": true,
+      "avoidLayoutShifts": true
+    },
+    "dataFetching": {
+      "useServerSide": "whenPossible",
+      "cachingStrategy": "staleWhileRevalidate",
+      "optimisticUpdates": true,
+      "attestationCaching": {
+        "cacheAttestation": true,
+        "implementInvalidation": true, 
+        "useLocalStorage": "forPersistence"
+      }
+    },
+    "mapPerformance": {
+      "lazyLoadMarkers": true,
+      "useViewportFiltering": true,
+      "limitDOMNodes": true,
+      "optimizeOverlayRendering": true
+    }
+  },
+  
+  "accessibility": {
+    "description": "Accessibility Standards",
+    "requireAriaLabels": true,
+    "semanticHTML": true,
+    "colorContrast": "WCAG AA",
+    "keyboardNavigation": true,
+    "screenReaderSupport": true,
+    "reducedMotion": true,
+    "mapAccessibility": {
+      "provideKeyboardControls": true,
+      "ensureAltText": true,
+      "addScreenReaderInstructions": true
+    }
+  },
+  
+  "web3": {
+    "description": "Web3 & Blockchain Specific",
+    "walletConnections": {
+      "preferSocialLogin": true,
+      "fallbackOptions": true,
+      "errorHandling": "robust",
+      "privyIntegration": {
+        "useStandardHooks": true,
+        "followPrivacyBestPractices": true
+      }
+    },
+    "transactions": {
+      "confirmationFeedback": true,
+      "retryMechanism": true,
+      "gasOptimization": true
+    },
+    "biconomy": {
+      "useAccountAbstraction": true,
+      "usePaymaster": true,
+      "modules": "structured",
+      "modulePatterns": {
+        "initializeOncePerSession": true,
+        "handleNetworkSwitching": true,
+        "implementFallbacks": true
+      }
+    },
+    "attestations": {
+      "validateBeforeSubmission": true,
+      "implementRetries": true,
+      "optimisticUpdates": true,
+      "schemaConsistency": true
+    },
+    "security": {
+      "validateInputs": true,
+      "avoidFrontendSigning": true,
+      "preventRaceConditions": true,
+      "useSafeProviders": true
+    }
+  },
+  
+  "maps": {
+    "description": "Maps Integration",
+    "optimization": {
+      "lazyLoadLibraries": true,
+      "limitMarkers": true,
+      "clusterMarkers": true,
+      "useStaticMapsWhenPossible": true
+    },
+    "locationManagement": {
+      "respectPrivacy": true,
+      "implementFallbacks": true,
+      "provideManualOption": true,
+      "accuracyTolerance": "10meters"
+    },
+    "accessibility": {
+      "keyboardControls": true,
+      "alternativeText": true
+    },
+    "performance": {
+      "cacheGeocodingResults": true,
+      "debounceLocationUpdates": true,
+      "optimizeOverlays": true,
+      "useGeospatialIndexing": true
+    },
+    "visualDesign": {
+      "consistentStyling": true,
+      "responsiveControls": true,
+      "clearVisualHierarchy": true,
+      "attestationVisibility": {
+        "distinguishTypes": true,
+        "highlightSelected": true,
+        "groupClusters": true
+      }
+    }
+  },
+  
+  "mobile": {
+    "description": "Mobile Optimization",
+    "touchTargets": "minimum48px",
+    "offlineSupport": "whenPossible",
+    "responsiveImages": true,
+    "preventZoom": false,
+    "appShell": true,
+    "usePWACapabilities": true,
+    "locationAccess": {
+      "clearPermissionRequests": true,
+      "handleDeniedPermissions": true,
+      "provideManualFallback": true
+    }
+  },
+  
+  "documentation": {
+    "description": "Documentation Requirements",
+    "componentProps": true,
+    "utilityFunctions": true,
+    "hooks": true,
+    "apis": true,
+    "stateManagement": true,
+    "web3Interfaces": {
+      "documentSchemas": true,
+      "explainAttestationFlow": true,
+      "walletConnectionProcess": true
+    },
+    "readme": {
+      "projectOverview": true,
+      "setupInstructions": true,
+      "developerGuide": true,
+      "architecture": true
+    }
+  },
+  
+  "security": {
+    "description": "Security Practices",
+    "sanitizeUserInput": true,
+    "preventXSS": true,
+    "secureEnvironmentVariables": true,
+    "apiRateLimiting": true,
+    "useCSP": true,
+    "preventClickjacking": true,
+    "locationPrivacy": {
+      "promptForConsent": true,
+      "avoidPersistentStorage": true,
+      "allowUserDeletion": true
+    },
+    "walletSecurity": {
+      "neverStorePrivateKeys": true,
+      "useSessionOnly": true,
+      "promptReconnect": true
+    }
+  },
+  
+  "touchGrassSpecific": {
+    "description": "Specific to this project's domain",
+    "locationData": {
+      "privacyStandards": "high",
+      "accuracy": "userControlled",
+      "fallbackMechanisms": true,
+      "precisionLimits": {
+        "maxDigits": 5,
+        "roundCoordinates": true
+      }
+    },
+    "attestations": {
+      "validation": "robust",
+      "errorHandling": "graceful",
+      "userFeedback": "immediate",
+      "attestationGroups": {
+        "groupByProximity": true,
+        "thresholdDistance": "10meters"
+      }
+    },
+    "grassDetection": {
+      "confidenceScoring": true,
+      "explainability": true,
+      "debuggingInfo": "available",
+      "optimisticUI": true,
+      "detectionAlgorithm": {
+        "useSatelliteData": true,
+        "implementConfidenceScores": true,
+        "allowManualOverride": true
+      }
+    },
+    "userInterface": {
+      "feedViewOptimization": true,
+      "historicalDataVisualization": true,
+      "leaderboardPerformance": true
+    }
+  },
+  
+  "lintConfigurations": {
+    "description": "Linting Configuration Reference",
+    "eslint": "eslint.config.mjs",
+    "typescript": "tsconfig.json",
+    "prettier": "inline"
+  }
+} 

@@ -150,6 +150,60 @@ Tests are located in the **tests** directory (or follow a *.test.ts naming conve
 
 Contributions are welcome! Please ensure that any new features or bug fixes align with the existing code style and best practices outlined in the project guidelines. Ensure to include appropriate tests and documentation for any changes.
 
-## License
+# Google Cloud SQL MCP Configuration
 
-[MIT](LICENSE)
+This MCP (Multi-Cloud Platform) configuration allows you to connect to a Google Cloud SQL instance using the Cloud SQL Auth Proxy.
+
+## Prerequisites
+
+1. You must be authenticated with Google Cloud (`gcloud auth login`)
+2. You need the appropriate permissions to access the Cloud SQL instance
+3. Your `.zshrc` file should contain the DB_CREDENTIALS environment variable with the following structure:
+   ```json
+   {
+     "DB_USER": "your-db-user",
+     "DB_PASSWORD": "your-db-password",
+     "DB_HOST": "localhost",
+     "DB_PORT": "5432",
+     "DB_NAME": "your-db-name"
+   }
+   ```
+
+## Configuration
+
+The MCP configuration consists of two servers:
+
+1. `cloudsql-proxy`: Runs the Cloud SQL Auth Proxy to establish a secure connection to your Cloud SQL instance
+2. `cloudsql-client`: Connects to the database using the credentials from your `.zshrc` file
+
+## Usage
+
+1. Edit the `cloud-sql-mcp.json` file and replace `YOUR_INSTANCE_NAME` with the name of your Google Cloud SQL instance.
+2. Run the MCP configuration:
+   ```
+   mcp cloud-sql-mcp.json
+   ```
+
+## Troubleshooting
+
+If you encounter a "Client Closed" error:
+
+1. Make sure you're authenticated with Google Cloud (`gcloud auth login`)
+2. Verify that your instance name is correct
+3. Check that you have the necessary permissions to access the Cloud SQL instance
+4. Ensure your DB_CREDENTIALS in `.zshrc` are correct
+5. Try increasing the sleep time in the `cloudsql-client` configuration (currently set to 5 seconds) to give the proxy more time to establish a connection
+
+## How It Works
+
+1. The `cloudsql-proxy` server:
+   - Sources your `.zshrc` file to get environment variables
+   - Gets the connection name of your Cloud SQL instance
+   - Runs the Cloud SQL Auth Proxy in a Docker container
+   - Maps port 5432 on your local machine to the proxy
+
+2. The `cloudsql-client` server:
+   - Sources your `.zshrc` file to get the DB_CREDENTIALS
+   - Waits for the proxy to start (5 seconds)
+   - Extracts the database credentials from the DB_CREDENTIALS environment variable
+   - Runs a PostgreSQL client in a Docker container to connect to the database through the proxy
