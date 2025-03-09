@@ -24,7 +24,7 @@ export interface StatusCardsProps {
   detectionResult: GrassDetectionResult | null;
   isManualOverride: boolean;
   onManualOverride: () => void;
-  walletAddress?: string;
+  walletAddress?: `0x${string}`;
   onDisconnect: () => void;
   onConnect: () => void;
   isAuthenticated: boolean;
@@ -34,19 +34,25 @@ export interface StatusCardsProps {
   onSelectAttestation: (attestation: Attestation | null) => void;
   attestations: Attestation[];
   allAttestations: Attestation[];
-  isLoadingHistory: boolean;
+  isLoadingHistory?: boolean;
   currentView: 'status' | 'history' | 'feed' | 'leaderboard' | 'about';
   onViewChange: (view: 'status' | 'history' | 'feed' | 'leaderboard' | 'about') => void;
   isLocationTooFar: boolean;
   initialLocation: LocationResult | null;
   onMapClick: (event: google.maps.MapMouseEvent) => void;
   showOnlyGrass: boolean;
-  onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
-  selectedUser: string | null;
-  onUserSelect: (address: string | null) => void;
+  selectedUser: `0x${string}` | null;
+  onUserSelect: (address: `0x${string}` | null) => void;
   map: google.maps.Map | null;
   onRequestPreciseLocation: () => Promise<LocationResult>;
   onLocationChange: (newLocation: LocationResult) => void;
+  mediaFilter: "all" | "1.0" | "0.1";
+  showJustMe: boolean;
+  onFilterChange: (options: {
+    showOnlyGrass: boolean;
+    showJustMe: boolean;
+    mediaFilter: "all" | "1.0" | "0.1";
+  }) => void;
 }
 
 export function StatusCards({
@@ -72,10 +78,12 @@ export function StatusCards({
   initialLocation,
   onMapClick,
   showOnlyGrass,
-  onShowOnlyGrassChange,
   selectedUser,
   onUserSelect,
   map,
+  mediaFilter,
+  showJustMe,
+  onFilterChange
 }: StatusCardsProps) {
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const [ensName, setEnsName] = useState<string | null>(null);
@@ -403,11 +411,16 @@ export function StatusCards({
             selectedAttestation={selectedAttestation}
             onBack={() => onViewChange('status')}
             showOnlyGrass={showOnlyGrass}
-            onShowOnlyGrassChange={onShowOnlyGrassChange}
+            onShowOnlyGrassChange={(showOnlyGrass) => 
+              onFilterChange({ showOnlyGrass, showJustMe, mediaFilter })
+            }
             selectedUser={selectedUser}
             onUserSelect={onUserSelect}
             isAuthenticated={isAuthenticated}
             userAddress={walletAddress}
+            initialMediaFilter={mediaFilter}
+            initialShowJustMe={showJustMe}
+            onFilterUpdate={onFilterChange}
           />
         )}
 
@@ -419,9 +432,15 @@ export function StatusCards({
               onUserSelect(null);
             }}
             showOnlyGrass={showOnlyGrass}
-            onShowOnlyGrassChange={onShowOnlyGrassChange}
+            onShowOnlyGrassChange={(showOnlyGrass) => 
+              onFilterChange({ showOnlyGrass, showJustMe, mediaFilter })
+            }
             selectedUser={selectedUser}
             onUserSelect={onUserSelect}
+            isAuthenticated={isAuthenticated}
+            initialMediaFilter={mediaFilter}
+            initialShowJustMe={showJustMe}
+            onFilterUpdate={onFilterChange}
           />
         )}
       </div>

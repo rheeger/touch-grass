@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useMemo } from 'react';
 import { GoogleMap, LoadScript, Marker, OverlayView } from '@react-google-maps/api';
-import { mapContainerStyle, MAP_ZOOM, getMapCenter, mapOptions, libraries, CIRCLE_SVG } from '@/config/mapConfig';
+import { mapContainerStyle, MAP_ZOOM, getMapCenter, mapOptions, libraries, PIN_SVG, CHECK_SVG, X_SVG } from '@/config/mapConfig';
 import { type Attestation } from '@/utils/attestations';
 import { analyzeGrass } from '@/utils/grassDetection';
 import Logger from '@/utils/logger';
@@ -13,6 +13,18 @@ export const MARKER_STYLES = `
     50% { transform: scale(1.5); opacity: 0.9; }
     100% { transform: scale(1); opacity: 1; }
   }
+  
+  @keyframes gold-pulse {
+    0% { transform: scale(0.95); opacity: 0.7; box-shadow: 0 0 20px 10px rgba(234, 179, 8, 0.4); }
+    50% { transform: scale(1.05); opacity: 0.9; box-shadow: 0 0 30px 15px rgba(234, 179, 8, 0.5); }
+    100% { transform: scale(0.95); opacity: 0.7; box-shadow: 0 0 20px 10px rgba(234, 179, 8, 0.4); }
+  }
+  
+  @keyframes sparkle {
+    0%, 100% { opacity: 0; transform: scale(0); }
+    50% { opacity: 1; transform: scale(1); }
+  }
+  
   .pulsating-dot {
     position: absolute;
     width: 16px;
@@ -23,8 +35,14 @@ export const MARKER_STYLES = `
     animation: pulse 2s infinite;
     transform: translate(-50%, -50%);
   }
+  
   .marker-emoji {
     transform: scale(0.8);
+    position: relative;
+  }
+  
+  .marker-production {
+    animation: gold-pulse 3s infinite ease-in-out;
   }
 `;
 
@@ -83,7 +101,6 @@ const MapComponent: React.FC<MapComponentProps> = ({
   onAnalysisComplete,
   onMapLoad,
   showOnlyGrass = false,
-  currentUserAddress = '',
   selectedUserAddress = null,
   onViewChange,
   isAuthenticated,
@@ -260,23 +277,52 @@ const MapComponent: React.FC<MapComponentProps> = ({
             )}
 
             {manualLocation && !selectedAttestation && (
-              <Marker
-                position={manualLocation}
-                icon={{
-                  path: CIRCLE_SVG,
-                  scale: 2,
-                  fillColor: isAnalyzing ? '#9CA3AF' : (isTouchingGrass ? '#34D399' : '#F87171'),
-                  fillOpacity: 0.9,
-                  strokeColor: '#FFFFFF',
-                  strokeWeight: 2,
-                }}
-                label={{
-                  text: isAnalyzing ? "❓" : (isTouchingGrass ? "🌿" : "❌"),
-                  fontSize: "19px",
-                  className: "marker-emoji"
-                }}
-                zIndex={2}
-              />
+              <>
+                {!isAnalyzing && (
+                  <Marker
+                    position={manualLocation}
+                    icon={{
+                      path: PIN_SVG,
+                      scale: 1,
+                      fillColor: '#000000',
+                      fillOpacity: 0.15,
+                      strokeWeight: 0,
+                      anchor: new google.maps.Point(0, 0),
+                    }}
+                    clickable={false}
+                    zIndex={1}
+                  />
+                )}
+                
+                <Marker
+                  position={manualLocation}
+                  icon={{
+                    path: PIN_SVG,
+                    scale: 1,
+                    fillColor: isAnalyzing ? '#9CA3AF' : (isTouchingGrass ? '#88D4B5' : '#F0A5A5'),
+                    fillOpacity: 1,
+                    strokeColor: '#FFFFFF',
+                    strokeWeight: 1.5,
+                    anchor: new google.maps.Point(0, 0),
+                  }}
+                  zIndex={2}
+                />
+                
+                {!isAnalyzing && (
+                  <Marker
+                    position={manualLocation}
+                    icon={{
+                      path: isTouchingGrass ? CHECK_SVG : X_SVG,
+                      scale: 1,
+                      strokeColor: '#FFFFFF',
+                      strokeWeight: 2,
+                      anchor: new google.maps.Point(0, 0),
+                    }}
+                    clickable={false}
+                    zIndex={3}
+                  />
+                )}
+              </>
             )}
 
             {/* Render grouped attestations */}
@@ -291,32 +337,75 @@ const MapComponent: React.FC<MapComponentProps> = ({
               return sortedGroup.map((attestation, index) => {
                 const baseZIndex = index * 2;
                 const isSelected = attestation.id === selectedAttestation?.id;
-                const finalZIndex = isSelected ? (group.length * 2) + 2 : baseZIndex;
-                const isUserAttestation = isAuthenticated && attestation.attester.toLowerCase() === currentUserAddress.toLowerCase();
+                const isProductionVersion = attestation.mediaVersion === "1.0";
+                
+                // Give production version markers the highest z-index priority
+                const finalZIndex = isProductionVersion ? 1000 + (isSelected ? 2 : 0) : 
+                                   isSelected ? (group.length * 2) + 4 : baseZIndex;
 
                 return (
-                  <Marker
-                    key={attestation.id}
-                    position={{ lat: attestation.lat, lng: attestation.lon }}
-                    icon={{
-                      path: CIRCLE_SVG,
-                      scale: 2,
-                      fillColor: attestation.isTouchingGrass ? '#34D399' : '#F87171',
-                      fillOpacity: isSelected ? 1 : 0.9,
-                      strokeColor: '#FFFFFF',
-                      strokeWeight: isSelected ? 3 : 2,
-                    }}
-                    label={{
-                      text: attestation.isTouchingGrass ? "🌿" : "❌",
-                      fontSize: "19px",
-                      className: "marker-emoji"
-                    }}
-                    onClick={() => {
-                      onSelectAttestation(attestation);
-                      onViewChange(isAuthenticated && isUserAttestation ? 'history' : 'feed');
-                    }}
-                    zIndex={finalZIndex}
-                  />
+                  <>
+                    {/* Glow effect for production version markers */}
+                    {isProductionVersion && (
+                      <>
+                        {/* Single radial gradient glow - placed in a lower map pane */}
+                        <OverlayView
+                          position={{ lat: attestation.lat, lng: attestation.lon }}
+                          mapPaneName={OverlayView.OVERLAY_LAYER}
+                        >
+                          <div
+                            style={{
+                              width: '20px',
+                              height: '20px',
+                              borderRadius: '50%',
+                              background: 'radial-gradient(circle, rgba(234, 179, 8, 0.7) 0%, rgba(234, 179, 8, 0.6) 30%, rgba(234, 179, 8, 0.5) 40%, rgba(234, 179, 8, 0.3) 75%)',
+                              boxShadow: '0 0 20px 10px rgba(234, 179, 8, 0.3)',
+                              pointerEvents: 'none',
+                              marginLeft: '-10px',
+                              marginTop: '-10px',
+                            }}
+                            className="marker-production"
+                          />
+                        </OverlayView>
+                      </>
+                    )}
+                  
+                    {/* Pin marker - now with explicit higher z-index */}
+                    <Marker
+                      key={`pin-${attestation.id}`}
+                      position={{ lat: attestation.lat, lng: attestation.lon }}
+                      icon={{
+                        path: PIN_SVG,
+                        scale: 1,
+                        fillColor: attestation.isTouchingGrass 
+                          ? (isProductionVersion ? '#34D399' : '#88D4B5') // Desaturated green for 0.1
+                          : (isProductionVersion ? '#F87171' : '#F0A5A5'), // Desaturated red for 0.1
+                        fillOpacity: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: isSelected ? 2 : 1.5,
+                        anchor: new google.maps.Point(0, 0),
+                      }}
+                      onClick={() => {
+                        onSelectAttestation(attestation);
+                        onViewChange('feed');
+                      }}
+                      zIndex={finalZIndex + 100} // Much higher z-index to ensure it's on top
+                    />
+
+                    <Marker
+                      key={`symbol-${attestation.id}`}
+                      position={{ lat: attestation.lat, lng: attestation.lon }}
+                      icon={{
+                        path: attestation.isTouchingGrass ? CHECK_SVG : X_SVG,
+                        scale: 1,
+                        strokeColor: '#FFFFFF',
+                        strokeWeight: 2.5,
+                        anchor: new google.maps.Point(0, 0),
+                      }}
+                      clickable={false}
+                      zIndex={finalZIndex + 101} // Even higher to ensure symbol is on top
+                    />
+                  </>
                 );
               });
             })}

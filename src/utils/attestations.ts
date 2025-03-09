@@ -44,7 +44,9 @@ const SCHEMA_UID = process.env.NEXT_PUBLIC_EAS_SCHEMA_UID as `0x${string}`;
 const SCHEMA_RAW =
   "uint256 eventTimestamp,string srs,string locationType,string location,string[] recipeType,bytes[] recipePayload,string[] mediaType,string[] mediaData,string memo" as const;
 
-const TOUCH_GRASS_MEDIA_TYPE = "rheeger/touch-grass-v0.1" as const;
+// Define both test and production media types
+const TOUCH_GRASS_MEDIA_TYPE_TEST = "rheeger/touch-grass-v0.1" as const;
+const TOUCH_GRASS_MEDIA_TYPE_PROD = "rheeger/touch-grass-v1.0" as const;
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000" as `0x${string}`;
 
@@ -67,6 +69,7 @@ export interface Attestation {
   lat: number;
   lon: number;
   txHash: `0x${string}`;
+  mediaVersion: "0.1" | "1.0"; // Add media version to the interface
 }
 
 interface DecodedField {
@@ -82,34 +85,36 @@ function toGeoJSON(lon: number, lat: number): string {
 }
 
 function fromGeoJSON(geoJSON: string): { lat: number; lon: number } {
-  const data = JSON.parse(geoJSON);
-  if (
-    data.type !== "Point" ||
-    !Array.isArray(data.coordinates) ||
-    data.coordinates.length !== 2
-  ) {
+  try {
+    const parsed = JSON.parse(geoJSON);
+    if (parsed.type === "Point" && Array.isArray(parsed.coordinates)) {
+      const [lon, lat] = parsed.coordinates;
+      return { lat, lon };
+    }
     throw new Error("Invalid GeoJSON format");
+  } catch (error) {
+    Logger.error('Failed to parse GeoJSON', { error, geoJSON });
+    throw error;
   }
-  return {
-    lon: data.coordinates[0],
-    lat: data.coordinates[1],
-  };
 }
 
-function createTouchGrassMediaData(isTouchingGrass: boolean): string {
+function createTouchGrassMediaData(isTouchingGrass: boolean, version: "0.1" | "1.0" = "1.0"): string {
   return JSON.stringify({
     isTouchingGrass,
-    version: "0.1",
+    version,
   });
 }
 
-function extractTouchGrassStatus(mediaData: string): boolean {
+function extractTouchGrassData(mediaData: string): { isTouchingGrass: boolean, version: "0.1" | "1.0" } {
   try {
     const data = JSON.parse(mediaData);
-    return !!data.isTouchingGrass;
+    return {
+      isTouchingGrass: !!data.isTouchingGrass,
+      version: data.version || "0.1" // Default to 0.1 if version is not specified
+    };
   } catch (error) {
     Logger.error('Failed to parse touch grass media data', { error });
-    return false;
+    return { isTouchingGrass: false, version: "0.1" };
   }
 }
 
@@ -117,24 +122,39 @@ function decodeAttestationData(encodedData: string): {
   isTouchingGrass: boolean;
   lat: number;
   lon: number;
+  mediaVersion: "0.1" | "1.0";
 } {
   const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
   const decodedData = schemaEncoder.decodeData(encodedData) as DecodedField[];
 
   const location = decodedData.find((field: DecodedField) => field.name === "location")?.value.value as string;
   const mediaData = decodedData.find((field: DecodedField) => field.name === "mediaData")?.value.value as string[];
+  const mediaType = decodedData.find((field: DecodedField) => field.name === "mediaType")?.value.value as string[];
 
   if (!location || !mediaData?.length) {
     throw new Error("Missing required fields in attestation data");
   }
 
   const coordinates = fromGeoJSON(location);
-  const isTouchingGrass = extractTouchGrassStatus(mediaData[0]);
+  const touchGrassData = extractTouchGrassData(mediaData[0]);
+
+  // Check if media type is the production version
+  let mediaVersion: "0.1" | "1.0" = touchGrassData.version;
+  
+  // If version is not in media data, try to determine from media type
+  if (mediaType?.length) {
+    if (mediaType[0] === TOUCH_GRASS_MEDIA_TYPE_PROD) {
+      mediaVersion = "1.0";
+    } else if (mediaType[0] === TOUCH_GRASS_MEDIA_TYPE_TEST) {
+      mediaVersion = "0.1";
+    }
+  }
 
   return {
-    isTouchingGrass,
+    isTouchingGrass: touchGrassData.isTouchingGrass,
     lat: coordinates.lat,
     lon: coordinates.lon,
+    mediaVersion,
   };
 }
 
@@ -168,8 +188,6 @@ async function initializeSchemaUID(): Promise<void> {
     throw error;
   }
 }
-
-initializeSchemaUID().catch((error) => Logger.error('Schema initialization failed', { error }));
 
 interface AttestationFilter {
   schemaId?: { equals: `0x${string}` };
@@ -277,6 +295,18 @@ export async function getAttestations(address?: `0x${string}`): Promise<Attestat
   }
 }
 
+// Filter attestations by media version
+export function filterAttestationsByMediaVersion(
+  attestations: Attestation[], 
+  version: "0.1" | "1.0" | "all" = "all"
+): Attestation[] {
+  if (version === "all") {
+    return attestations;
+  }
+  
+  return attestations.filter(attestation => attestation.mediaVersion === version);
+}
+
 export function prepareGrassAttestation(
   walletAddress: string,
   lat: number,
@@ -285,7 +315,7 @@ export function prepareGrassAttestation(
 ): UnsignedTransactionRequest {
   const schemaEncoder = new SchemaEncoder(SCHEMA_RAW);
   const locationGeoJSON = toGeoJSON(lon, lat);
-  const touchGrassData = createTouchGrassMediaData(isTouchingGrass);
+  const touchGrassData = createTouchGrassMediaData(isTouchingGrass, "1.0"); // Use version 1.0 for new attestations
   const eventTimestamp = BigInt(Math.floor(Date.now() / 1000));
 
   const encodedData = schemaEncoder.encodeData([
@@ -295,7 +325,7 @@ export function prepareGrassAttestation(
     { name: "location", type: "string", value: locationGeoJSON },
     { name: "recipeType", type: "string[]", value: [] },
     { name: "recipePayload", type: "bytes[]", value: [] },
-    { name: "mediaType", type: "string[]", value: [TOUCH_GRASS_MEDIA_TYPE] },
+    { name: "mediaType", type: "string[]", value: [TOUCH_GRASS_MEDIA_TYPE_PROD] }, // Use production media type
     { name: "mediaData", type: "string[]", value: [touchGrassData] },
     { name: "memo", type: "string", value: "" },
   ]);

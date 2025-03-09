@@ -200,13 +200,25 @@ export function ListCard({
                 <div
                   key={attestation.id}
                   ref={attestation.id === selectedAttestation?.id ? selectedItemRef : null}
-                  className={`list-item ${
+                  className={`list-item relative ${
                     selectedAttestation?.id === attestation.id
                       ? 'list-item-selected'
                       : 'list-item-default'
+                  } ${
+                    attestation.mediaVersion === "1.0" 
+                      ? 'list-item-production' 
+                      : 'list-item-test'
                   }`}
                   onClick={() => onSelectAttestation(attestation)}
                 >
+                  {/* Add sparkle elements for production version */}
+                  {attestation.mediaVersion === "1.0" && (
+                    <>
+                      <div className="sparkle"></div>
+                      <div className="sparkle"></div>
+                      <div className="sparkle"></div>
+                    </>
+                  )}
                   <div className="list-item-header">
                     <div className="list-item-top">
                       <div className={`list-item-status ${

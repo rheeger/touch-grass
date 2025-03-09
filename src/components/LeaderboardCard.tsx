@@ -2,18 +2,27 @@ import { type Attestation } from '@/utils/attestations';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import '@/styles/leaderboard.css';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
+import { FilterDropdown } from './FilterDropdown';
 
 interface LeaderboardCardProps {
   attestations: Attestation[];
   onBack: () => void;
   showOnlyGrass: boolean;
   onShowOnlyGrassChange: (showOnlyGrass: boolean) => void;
-  onUserSelect: (address: string | null) => void;
-  selectedUser: string | null;
+  onUserSelect: (address: `0x${string}` | null) => void;
+  selectedUser: `0x${string}` | null;
+  isAuthenticated: boolean;
+  initialMediaFilter?: "all" | "1.0" | "0.1";
+  initialShowJustMe?: boolean;
+  onFilterUpdate?: (options: {
+    showOnlyGrass: boolean;
+    showJustMe: boolean;
+    mediaFilter: "all" | "1.0" | "0.1";
+  }) => void;
 }
 
 interface LeaderboardEntry {
-  address: string;
+  address: `0x${string}`;
   totalCount: number;
   grassCount: number;
   isPlaceholder?: boolean;
@@ -43,15 +52,36 @@ export function LeaderboardCard({
   showOnlyGrass,
   onShowOnlyGrassChange,
   onUserSelect,
-  selectedUser
+  selectedUser,
+  isAuthenticated = false, // Default to false if not provided
+  initialMediaFilter,
+  initialShowJustMe,
+  onFilterUpdate
 }: LeaderboardCardProps) {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [ensNames, setEnsNames] = useState<{ [address: string]: string | null }>({});
   const [isResolvingEns, setIsResolvingEns] = useState(false);
-
+  const [showJustMe, setShowJustMe] = useState(initialShowJustMe || false);
+  const [mediaFilter, setMediaFilter] = useState<"all" | "1.0" | "0.1">(initialMediaFilter || "all");
+  
+  // Keep local state in sync with parent props
+  useEffect(() => {
+    if (initialMediaFilter !== undefined) {
+      setMediaFilter(initialMediaFilter);
+    }
+    if (initialShowJustMe !== undefined) {
+      setShowJustMe(initialShowJustMe);
+    }
+  }, [initialMediaFilter, initialShowJustMe]);
+  
   // Memoize user stats calculation
   const userStats = useMemo(() => {
-    return attestations.reduce((acc, attestation) => {
+    // Apply media filter if needed
+    const filteredAttestations = mediaFilter === "all" 
+      ? attestations 
+      : attestations.filter(att => att.mediaVersion === mediaFilter);
+      
+    return filteredAttestations.reduce((acc, attestation) => {
       const address = attestation.attester;
       if (!acc[address]) {
         acc[address] = {
@@ -67,7 +97,7 @@ export function LeaderboardCard({
       }
       return acc;
     }, {} as Record<string, LeaderboardEntry>);
-  }, [attestations]);
+  }, [attestations, mediaFilter]);
 
   // Memoize sorted leaderboard
   const sortedLeaderboard = useMemo(() => {
@@ -78,67 +108,82 @@ export function LeaderboardCard({
     });
   }, [userStats, showOnlyGrass]);
 
-  // Optimize ENS resolution with batching
+  // Fetch ENS names for leaderboard
   useEffect(() => {
-    if (isResolvingEns) return;
+    const fetchEnsNames = async () => {
+      if (sortedLeaderboard.length === 0 || isResolvingEns) return;
 
-    const unresolvedAddresses = sortedLeaderboard
-      .filter(entry => !entry.isPlaceholder && ensNames[entry.address] === undefined)
-      .map(entry => entry.address);
-
-    if (unresolvedAddresses.length === 0) return;
-
-    const resolveNames = async () => {
       setIsResolvingEns(true);
-      try {
-        const batchSize = 5;
-        for (let i = 0; i < unresolvedAddresses.length; i += batchSize) {
-          const batch = unresolvedAddresses.slice(i, i + batchSize);
-          const results = await Promise.all(
-            batch.map(async address => ({
-              address,
-              name: await resolveEnsName(address)
-            }))
-          );
-          
-          setEnsNames(prev => ({
-            ...prev,
-            ...Object.fromEntries(results.map(({ address, name }) => [address, name]))
-          }));
+      const uniqueAddresses = [...new Set(sortedLeaderboard.map(entry => entry.address))];
+
+      const names: Record<string, string | null> = {};
+      for (const address of uniqueAddresses) {
+        try {
+          const ensName = await resolveEnsName(address);
+          names[address] = ensName;
+        } catch (error) {
+          console.error(`Failed to resolve ENS name for ${address}:`, error);
+          names[address] = null;
         }
-      } catch (error) {
-        console.error('Error resolving ENS names:', error);
-      } finally {
-        setIsResolvingEns(false);
       }
+
+      setEnsNames(names);
+      setIsResolvingEns(false);
     };
 
-    resolveNames();
-  }, [sortedLeaderboard, ensNames, isResolvingEns]);
+    fetchEnsNames();
+  }, [sortedLeaderboard, isResolvingEns]);
 
-  // Update leaderboard when sorted data changes
+  // Update leaderboard with ENS names
   useEffect(() => {
-    setLeaderboard(sortedLeaderboard);
-  }, [sortedLeaderboard]);
+    if (Object.keys(ensNames).length > 0) {
+      const updatedLeaderboard = sortedLeaderboard.map(entry => ({
+        ...entry,
+        ensName: ensNames[entry.address]
+      }));
+      setLeaderboard(updatedLeaderboard);
+    } else {
+      setLeaderboard(sortedLeaderboard);
+    }
+  }, [sortedLeaderboard, ensNames]);
 
-  // Memoize display entries
+  // Create display entries including placeholders if needed
   const displayEntries = useMemo(() => {
-    return [...Array(LEADERBOARD_SIZE)].map((_, index) => {
-      if (index < leaderboard.length) {
-        return {
-          ...leaderboard[index],
-          ensName: ensNames[leaderboard[index].address]
-        };
+    // If using "JUST ME" filter and authenticated, filter to only show the user
+    let filteredLeaderboard = leaderboard;
+    if (showJustMe && selectedUser) {
+      filteredLeaderboard = leaderboard.filter(entry => entry.address.toLowerCase() === selectedUser.toLowerCase());
+    }
+    
+    const entries = [...filteredLeaderboard];
+    // Add placeholders if less than LEADERBOARD_SIZE entries
+    if (entries.length < LEADERBOARD_SIZE) {
+      const placeholdersNeeded = LEADERBOARD_SIZE - entries.length;
+      for (let i = 0; i < placeholdersNeeded; i++) {
+        entries.push({
+          address: `0x${'0'.repeat(40)}` as `0x${string}`, // Valid 0x address format
+          totalCount: 0,
+          grassCount: 0,
+          isPlaceholder: true
+        });
       }
-      return {
-        address: '0x0000000000000000000000000000000000000000',
-        totalCount: 0,
-        grassCount: 0,
-        isPlaceholder: true,
-        ensName: null,
-      };
-    });
-  }, [leaderboard, ensNames]);
+    }
+    return entries.slice(0, LEADERBOARD_SIZE);
+  }, [leaderboard, showJustMe, selectedUser]);
+
+  // Handle filter changes from the FilterDropdown component
+  const handleFilterChange = (newOptions: {
+    showOnlyGrass: boolean;
+    showJustMe: boolean;
+    mediaFilter: "all" | "1.0" | "0.1";
+  }) => {
+    onShowOnlyGrassChange(newOptions.showOnlyGrass);
+    setShowJustMe(newOptions.showJustMe);
+    setMediaFilter(newOptions.mediaFilter);
+    if (onFilterUpdate) {
+      onFilterUpdate(newOptions);
+    }
+  };
 
   // Memoize user click handler
   const handleUserClick = useCallback((entry: LeaderboardEntry) => {
@@ -151,33 +196,28 @@ export function LeaderboardCard({
   return (
     <div className="leaderboard-card h-[50vh]">
       <div className="leaderboard-header">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={onBack}
-            className="leaderboard-back-button"
-          >
-            <span>←</span>
-            <span>BACK</span>
-          </button>
-          <span className="leaderboard-title">LEADERBOARD</span>
-        </div>
-        <div className="leaderboard-toggle">
-          <button
-            onClick={() => onShowOnlyGrassChange(false)}
-            className={`leaderboard-toggle-button ${
-              !showOnlyGrass ? 'leaderboard-toggle-button-active' : 'leaderboard-toggle-button-inactive'
-            }`}
-          >
-            ALL
-          </button>
-          <button
-            onClick={() => onShowOnlyGrassChange(true)}
-            className={`leaderboard-toggle-button ${
-              showOnlyGrass ? 'leaderboard-toggle-button-active' : 'leaderboard-toggle-button-inactive'
-            }`}
-          >
-            GRASS
-          </button>
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={onBack}
+              className="leaderboard-back-button"
+            >
+              <span>←</span>
+              <span>BACK</span>
+            </button>
+            <span className="leaderboard-title">LEADERBOARD</span>
+          </div>
+          
+          {/* Unified filter dropdown component for leaderboard */}
+          <FilterDropdown 
+            options={{
+              showOnlyGrass,
+              showJustMe,
+              mediaFilter
+            }}
+            onChange={handleFilterChange}
+            isAuthenticated={isAuthenticated}
+          />
         </div>
       </div>
 
@@ -205,7 +245,7 @@ export function LeaderboardCard({
                       {entry.isPlaceholder ? (
                         <span className="leaderboard-address-placeholder">Unclaimed</span>
                       ) : (
-                        formatAddressOrEns(entry.address, entry.ensName)
+                        formatAddressOrEns(entry.address, entry.ensName || null)
                       )}
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import type { GrassDetectionResult } from '@/utils/grassDetection';
 import { analyzeGrass } from '@/utils/grassDetection';
@@ -39,6 +39,8 @@ export default function Home() {
   const [currentView, setCurrentView] = useState<'status' | 'history' | 'feed' | 'leaderboard' | 'about'>('status');
   const [isLocationTooFar, setIsLocationTooFar] = useState(false);
   const [showOnlyGrass, setShowOnlyGrass] = useState(false);
+  const [mediaFilter, setMediaFilter] = useState<"all" | "1.0" | "0.1">("all");
+  const [showJustMe, setShowJustMe] = useState(false);
 
   // Consolidate initialization state
   const [initState, setInitState] = useState({
@@ -430,6 +432,49 @@ export default function Home() {
     }
   };
 
+  // Filter function that can be applied to attestations
+  const applyFilters = useCallback((attestations: Attestation[]) => {
+    return attestations.filter(attestation => {
+      // Apply grass filter
+      const passesGrassFilter = !showOnlyGrass || attestation.isTouchingGrass;
+      
+      // Apply media filter
+      const passesMediaFilter = mediaFilter === "all" || attestation.mediaVersion === mediaFilter;
+      
+      // Apply "just me" filter
+      let passesJustMeFilter = true;
+      if (showJustMe) {
+        passesJustMeFilter = activeWallet?.address != null && 
+                         attestation.attester.toLowerCase() === activeWallet.address.toLowerCase();
+      }
+      
+      return passesGrassFilter && passesMediaFilter && passesJustMeFilter;
+    });
+  }, [showOnlyGrass, mediaFilter, showJustMe, activeWallet]);
+
+  // Create filtered attestations
+  const filteredAllAttestations = useMemo(() => {
+    return applyFilters(allAttestations);
+  }, [allAttestations, applyFilters]);
+
+  // Handle filter changes from any filter dropdown
+  const handleFilterChange = useCallback((newOptions: {
+    showOnlyGrass: boolean;
+    showJustMe: boolean;
+    mediaFilter: "all" | "1.0" | "0.1";
+  }) => {
+    setShowOnlyGrass(newOptions.showOnlyGrass);
+    setShowJustMe(newOptions.showJustMe);
+    setMediaFilter(newOptions.mediaFilter);
+    
+    // Log filter changes
+    Logger.info('Filter options changed', {
+      showOnlyGrass: newOptions.showOnlyGrass,
+      showJustMe: newOptions.showJustMe,
+      mediaFilter: newOptions.mediaFilter
+    });
+  }, []);
+
   if (!ready) {
     return <div>Loading...</div>;
   }
@@ -451,10 +496,10 @@ export default function Home() {
           }
           isAnalyzing={isAnalyzing}
           isTouchingGrass={isTouchingGrass}
-          isViewingFeed={currentView === 'feed'}
+          isViewingFeed={currentView === 'feed' || currentView === 'leaderboard'}
           feedAttestations={selectedUser ? 
-            allAttestations.filter(a => a.attester.toLowerCase() === selectedUser.toLowerCase()) 
-            : allAttestations}
+            filteredAllAttestations.filter(a => a.attester.toLowerCase() === selectedUser.toLowerCase()) 
+            : filteredAllAttestations}
           onSelectAttestation={setSelectedAttestation}
           currentUserAddress={activeWallet?.address}
           selectedUserAddress={selectedUser}
@@ -505,7 +550,7 @@ export default function Home() {
               detectionResult={detectionResult}
               isManualOverride={isManualOverride}
               onManualOverride={handleManualOverride}
-              walletAddress={activeWallet?.address}
+              walletAddress={activeWallet?.address as `0x${string}` | undefined}
               onDisconnect={logout}
               onConnect={login}
               isAuthenticated={authenticated}
@@ -522,12 +567,14 @@ export default function Home() {
               initialLocation={initialLocation}
               onMapClick={handleMapClick}
               showOnlyGrass={showOnlyGrass}
-              onShowOnlyGrassChange={setShowOnlyGrass}
-              selectedUser={selectedUser}
+              selectedUser={selectedUser as `0x${string}` | null}
               onUserSelect={setSelectedUser}
               map={mapRef.current}
               onRequestPreciseLocation={handleRequestPreciseLocation}
               onLocationChange={handleLocationChange}
+              mediaFilter={mediaFilter}
+              showJustMe={showJustMe}
+              onFilterChange={handleFilterChange}
             />
           )}
         </div>
