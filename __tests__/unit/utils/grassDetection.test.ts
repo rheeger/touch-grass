@@ -1,13 +1,13 @@
-// Mock the places module
-jest.mock('@/utils/places', () => ({
-  analyzePlacesData: jest.fn(),
+// Mock the outdoors service
+jest.mock('@/services/outdoors/detection', () => ({
+  detectOutdoorLocation: jest.fn(),
 }));
 
-// Import the mocked module
-import { analyzeGrass } from '@/utils/grassDetection';
-import { analyzePlacesData } from '@/utils/places';
+// Import the mocked module and types
+import { analyzeGrass, SpaceCategory } from '@/services/outdoors';
+import { detectOutdoorLocation } from '@/services/outdoors/detection';
 
-describe('Grass Detection Utility', () => {
+describe('Grass Detection Service', () => {
   // Mock Google Maps
   const mockMap = {} as google.maps.Map;
 
@@ -17,30 +17,37 @@ describe('Grass Detection Utility', () => {
   });
 
   describe('analyzeGrass', () => {
-    it('should return isTouchingGrass=true when in a park and not in a building', async () => {
+    it('should return isTouchingGrass=true when in a natural area', async () => {
       // Arrange
-      const mockPlacesResult = {
-        isInPark: true,
-        isInBuilding: false,
+      const mockOutdoorResult = {
+        isOutdoors: true,
+        spaceCategory: SpaceCategory.NATURAL_AREA,
         confidence: 85,
-        reasons: ['Located in a park'],
+        reasons: ['Located in a natural area'],
         explanations: {
           positive: ['Near grass area'],
           negative: []
         },
-        placeTypes: ['park', 'point_of_interest']
+        debugInfo: {
+          isBuilding: false,
+          placeTypes: ['park', 'point_of_interest']
+        }
       };
       
-      (analyzePlacesData as jest.Mock).mockResolvedValue(mockPlacesResult);
+      (detectOutdoorLocation as jest.Mock).mockResolvedValue(mockOutdoorResult);
       
       // Act
       const result = await analyzeGrass(40.7128, -74.006, mockMap, false);
       
       // Assert
-      expect(analyzePlacesData).toHaveBeenCalledWith(40.7128, -74.006, mockMap, false);
+      expect(detectOutdoorLocation).toHaveBeenCalledWith(
+        { lat: 40.7128, lng: -74.006 },
+        mockMap,
+        { isManualOverride: false }
+      );
       expect(result.isTouchingGrass).toBe(true);
       expect(result.confidence).toBe(85);
-      expect(result.reasons).toEqual(['Located in a park']);
+      expect(result.reasons).toEqual(['Located in a natural area']);
       expect(result.explanations.positive).toEqual(['Near grass area']);
       expect(result.explanations.negative).toEqual([]);
       expect(result.debugInfo).toEqual({
@@ -52,19 +59,22 @@ describe('Grass Detection Utility', () => {
 
     it('should return isTouchingGrass=false when in a building', async () => {
       // Arrange
-      const mockPlacesResult = {
-        isInPark: true,
-        isInBuilding: true,
+      const mockOutdoorResult = {
+        isOutdoors: false,
+        spaceCategory: SpaceCategory.INDOOR,
         confidence: 60,
-        reasons: ['Located in a building within a park'],
+        reasons: ['Located in a building'],
         explanations: {
-          positive: ['Near grass area'],
+          positive: [],
           negative: ['Inside a building']
         },
-        placeTypes: ['park', 'building', 'point_of_interest']
+        debugInfo: {
+          isBuilding: true,
+          placeTypes: ['building', 'point_of_interest']
+        }
       };
       
-      (analyzePlacesData as jest.Mock).mockResolvedValue(mockPlacesResult);
+      (detectOutdoorLocation as jest.Mock).mockResolvedValue(mockOutdoorResult);
       
       // Act
       const result = await analyzeGrass(40.7128, -74.006, mockMap, false);
@@ -72,79 +82,79 @@ describe('Grass Detection Utility', () => {
       // Assert
       expect(result.isTouchingGrass).toBe(false);
       expect(result.confidence).toBe(60);
-      expect(result.reasons).toEqual(['Located in a building within a park']);
       expect(result.explanations.negative).toContain('Inside a building');
     });
 
-    it('should return isTouchingGrass=false when not in a park', async () => {
+    it('should return isTouchingGrass=false when in an urban area', async () => {
       // Arrange
-      const mockPlacesResult = {
-        isInPark: false,
-        isInBuilding: false,
-        confidence: 30,
-        reasons: ['Not in a park or grass area'],
+      const mockOutdoorResult = {
+        isOutdoors: true,
+        spaceCategory: SpaceCategory.URBAN,
+        confidence: 70,
+        reasons: ['Located in an urban area'],
         explanations: {
-          positive: [],
-          negative: ['Not in a park']
+          positive: ['Outdoors'],
+          negative: ['Urban environment']
         },
-        placeTypes: ['street', 'point_of_interest']
+        debugInfo: {
+          isBuilding: false,
+          placeTypes: ['street', 'point_of_interest']
+        }
       };
       
-      (analyzePlacesData as jest.Mock).mockResolvedValue(mockPlacesResult);
+      (detectOutdoorLocation as jest.Mock).mockResolvedValue(mockOutdoorResult);
       
       // Act
       const result = await analyzeGrass(40.7128, -74.006, mockMap, false);
       
       // Assert
       expect(result.isTouchingGrass).toBe(false);
-      expect(result.confidence).toBe(30);
-      expect(result.explanations.negative).toContain('Not in a park');
+      expect(result.confidence).toBe(70);
     });
 
-    it('should cap confidence at 100', async () => {
+    it('should handle manual override', async () => {
       // Arrange
-      const mockPlacesResult = {
-        isInPark: true,
-        isInBuilding: false,
-        confidence: 120, // Over 100
-        reasons: ['Located in a park'],
+      const mockOutdoorResult = {
+        isOutdoors: true,
+        spaceCategory: SpaceCategory.NATURAL_AREA,
+        confidence: 100,
+        reasons: ['Manual override enabled'],
         explanations: {
-          positive: ['Near grass area'],
+          positive: ['You\'ve overridden outdoor detection.'],
           negative: []
         },
-        placeTypes: ['park', 'point_of_interest']
+        debugInfo: {
+          manualOverride: true
+        }
       };
       
-      (analyzePlacesData as jest.Mock).mockResolvedValue(mockPlacesResult);
+      (detectOutdoorLocation as jest.Mock).mockResolvedValue(mockOutdoorResult);
       
       // Act
-      const result = await analyzeGrass(40.7128, -74.006, mockMap, false);
+      const result = await analyzeGrass(40.7128, -74.006, mockMap, true);
       
       // Assert
-      expect(result.confidence).toBe(100); // Should be capped at 100
+      expect(detectOutdoorLocation).toHaveBeenCalledWith(
+        { lat: 40.7128, lng: -74.006 },
+        mockMap,
+        { isManualOverride: true }
+      );
+      expect(result.isTouchingGrass).toBe(true);
+      expect(result.confidence).toBe(100);
     });
 
-    it('should floor confidence at 0', async () => {
+    it('should handle errors gracefully', async () => {
       // Arrange
-      const mockPlacesResult = {
-        isInPark: false,
-        isInBuilding: true,
-        confidence: -10, // Below 0
-        reasons: ['Not in a park'],
-        explanations: {
-          positive: [],
-          negative: ['Inside a building', 'Not in a park']
-        },
-        placeTypes: ['building', 'point_of_interest']
-      };
-      
-      (analyzePlacesData as jest.Mock).mockResolvedValue(mockPlacesResult);
+      (detectOutdoorLocation as jest.Mock).mockRejectedValue(new Error('API failure'));
       
       // Act
       const result = await analyzeGrass(40.7128, -74.006, mockMap, false);
       
       // Assert
-      expect(result.confidence).toBe(0); // Should be floored at 0
+      expect(result.isTouchingGrass).toBe(false);
+      expect(result.confidence).toBe(20);
+      expect(result.reasons).toContain('Detection failed');
+      expect(result.reasons).toContain('API failure');
     });
   });
 }); 

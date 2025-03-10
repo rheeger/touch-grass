@@ -8,13 +8,13 @@ import { FeedCard } from './FeedCard';
 import { LeaderboardCard } from './LeaderboardCard';
 import { AboutCard } from './About';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
-import { getHumanReadableLocation, type FormattedLocation } from '@/utils/places';
+import { getFormattedLocationFromService, type FormattedLocation } from '@/services/places';
 import Logger from '@/utils/logger';
 import { LocationResult } from '@/utils/location';
-import type { GrassDetectionResult } from '@/utils/grassDetection';
 import { getRegistrationStatus } from '@/utils/registration';
 import { Tooltip } from './Tooltip';
 import { RegistrationWarning } from './RegistrationWarning';
+import { GrassDetectionResult } from '@/services/outdoors';
 
 export interface StatusCardsProps {
   isLoading: boolean;
@@ -114,19 +114,40 @@ export function StatusCards({
   useEffect(() => {
     if (location && map) {
       Logger.info('Getting human readable location with map instance', { location });
-      getHumanReadableLocation(location.lat, location.lng, map)
+      getFormattedLocationFromService(location.lat, location.lng, map)
         .then(formatted => {
           Logger.info('Got formatted location', { formatted });
           setFormattedLocation(formatted);
         })
         .catch(error => {
           Logger.error('Error getting formatted location', { error });
-          setFormattedLocation(null);
+          // Even in case of error, provide basic coordinates
+          setFormattedLocation({
+            placeName: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
+            city: '',
+            state: '',
+            country: '',
+            fullAddress: `${location.lat}, ${location.lng}`,
+            url: `https://www.google.com/maps?q=${location.lat},${location.lng}`
+          });
         });
     } else {
       if (!location) Logger.debug('No location available');
       if (!map) Logger.debug('Map not ready');
-      setFormattedLocation(null);
+      
+      // If we have location but no map, still show basic coordinates
+      if (location && !map) {
+        setFormattedLocation({
+          placeName: `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`,
+          city: '',
+          state: '',
+          country: '',
+          fullAddress: `${location.lat}, ${location.lng}`,
+          url: `https://www.google.com/maps?q=${location.lat},${location.lng}`
+        });
+      } else {
+        setFormattedLocation(null);
+      }
     }
   }, [location, map]);
 
@@ -289,21 +310,36 @@ export function StatusCards({
                           <>
                             {formattedLocation ? (
                               <>
-                                {formattedLocation.placeName && (
-                                  <div className="text-base font-medium">
-                                    {formattedLocation.placeName}
-                                  </div>
-                                )}
+                                <div className="text-base font-medium">
+                                  {formattedLocation.placeName || 'Current Location'}
+                                </div>
                                 <div className="text-sm text-white/60">
                                   {[
-                                    formattedLocation.city,
-                                    formattedLocation.state,
+                                    formattedLocation.city, 
+                                    formattedLocation.state, 
                                     formattedLocation.country
                                   ].filter(Boolean).join(', ')}
+                                  {![formattedLocation.city, formattedLocation.state, formattedLocation.country].some(Boolean) && '—'}
+                                </div>
+                              </>
+                            ) : location ? (
+                              <>
+                                <div className="text-base font-medium">
+                                  Current Location
+                                </div>
+                                <div className="text-sm text-white/60">
+                                  {`${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
                                 </div>
                               </>
                             ) : (
-                              <div className="text-base">Unknown Location</div>
+                              <>
+                                <div className="text-base font-medium">
+                                  Location Unavailable
+                                </div>
+                                <div className="text-sm text-white/60">
+                                  —
+                                </div>
+                              </>
                             )}
                           </>
                         )}

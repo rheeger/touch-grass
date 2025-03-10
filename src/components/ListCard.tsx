@@ -1,8 +1,10 @@
 import { type Attestation } from '@/utils/attestations';
-import { getRelativeTimeString, calculateDistance, formatDistance, getHumanReadableLocation, type FormattedLocation } from '@/utils/places';
+import { formatDistance, calculateDistance, getFormattedLocationFromService } from '@/services/places';
 import { useEffect, useRef, useMemo, useCallback, useState, ReactNode } from 'react';
 import { resolveEnsName, formatAddressOrEns } from '@/utils/ens';
+import { getRelativeTimeString } from '@/utils/relativeTime';
 import '@/styles/listcard.css';
+import type { FormattedLocation } from '@/services/places';
 
 export interface ListCardProps {
   attestations: Attestation[];
@@ -109,10 +111,8 @@ export function ListCard({
   const calculateDistances = useCallback((attestation: Attestation) => {
     if (!currentLocation) return null;
     return calculateDistance(
-      currentLocation.lat,
-      currentLocation.lng,
-      attestation.lat,
-      attestation.lon
+      { lat: currentLocation.lat, lng: currentLocation.lng },
+      { lat: attestation.lat, lng: attestation.lon }
     );
   }, [currentLocation]);
 
@@ -129,13 +129,25 @@ export function ListCard({
           await Promise.all(
             batch.map(async (attestation) => {
               try {
-                const formatted = await getHumanReadableLocation(attestation.lat, attestation.lon, map);
+                const formatted = await getFormattedLocationFromService(attestation.lat, attestation.lon, map);
                 setFormattedLocations(prev => ({
                   ...prev,
                   [attestation.id]: formatted
                 }));
               } catch (error) {
                 console.error(`Error formatting location for attestation ${attestation.id}:`, error);
+                // Provide fallback location information
+                setFormattedLocations(prev => ({
+                  ...prev,
+                  [attestation.id]: {
+                    placeName: `${attestation.lat.toFixed(4)}, ${attestation.lon.toFixed(4)}`,
+                    city: '',
+                    state: '',
+                    country: '',
+                    fullAddress: `${attestation.lat}, ${attestation.lon}`,
+                    url: `https://www.google.com/maps?q=${attestation.lat},${attestation.lon}`
+                  }
+                }));
               }
             })
           );
@@ -249,11 +261,9 @@ export function ListCard({
                   <div className="list-item-location">
                     {formattedLocations[attestation.id] ? (
                       <div className="flex flex-col">
-                        {formattedLocations[attestation.id].placeName && (
-                          <div className="list-item-place">
-                            {formattedLocations[attestation.id].placeName}
-                          </div>
-                        )}
+                        <div className="list-item-place">
+                          {formattedLocations[attestation.id].placeName || 'Location'}
+                        </div>
                         <div className="list-item-address">
                           {[
                             formattedLocations[attestation.id].city,
@@ -262,10 +272,20 @@ export function ListCard({
                           ]
                             .filter(Boolean)
                             .join(', ')}
+                          {![
+                            formattedLocations[attestation.id].city,
+                            formattedLocations[attestation.id].state,
+                            formattedLocations[attestation.id].country
+                          ].some(Boolean) && '—'}
                         </div>
                       </div>
                     ) : (
-                      <div className="text-sm text-gray-500">Loading location...</div>
+                      <div className="flex flex-col">
+                        <div className="list-item-place">Location</div>
+                        <div className="list-item-address">
+                          {`${attestation.lat.toFixed(4)}, ${attestation.lon.toFixed(4)}`}
+                        </div>
+                      </div>
                     )}
                   </div>
                   <div className="list-item-footer">
