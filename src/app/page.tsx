@@ -2,20 +2,19 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import type { GrassDetectionResult } from '@/utils/grassDetection';
-import { analyzeGrass } from '@/utils/grassDetection';
+import { calculateDistance } from '@/services/places';
 import { createAttestation, getAttestations, Attestation } from '@/utils/attestations';
 import { StatusCards } from '@/components/StatusCards';
 import { getActiveWallet, getWalletAddress, isConnectedWallet, ActiveWallet } from '@/utils/walletManager';
 import MapComponent from '@/components/MapComponent';
 import AlertBar from '@/components/AlertBar';
-import { calculateDistance } from '@/utils/places';
 import confetti from 'canvas-confetti';
 import Logger from '@/utils/logger';
 import { getRegistrationStatus } from '@/utils/registration';
 import { AboutCard } from '@/components/About';
 import { getUserLocation, requestPreciseLocation, tryPreciseLocation, type LocationResult } from '@/utils/location';
 import { MAP_ZOOM } from '@/config/mapConfig';
+import { analyzeGrass, GrassDetectionResult } from '@/services/outdoors';
 
 export default function Home() {
   const mapRef = useRef<google.maps.Map | null>(null);
@@ -250,11 +249,9 @@ export default function Home() {
   useEffect(() => {
     if (process.env.NEXT_PUBLIC_APP_ENV === 'production' && location && initialLocation) {
       const distance = calculateDistance(
-        location.lat,
-        location.lng,
-        initialLocation.lat,
-        initialLocation.lng
-      ) * 1000; // Convert km to meters
+        { lat: location.lat, lng: location.lng },
+        { lat: initialLocation.lat, lng: initialLocation.lng }
+      );
 
       setIsLocationTooFar(distance > 30);
     } else {
@@ -525,7 +522,6 @@ export default function Home() {
           }}
           showOnlyGrass={showOnlyGrass}
           onViewChange={setCurrentView}
-          isAuthenticated={authenticated}
           currentView={currentView}
         />
       </div>
